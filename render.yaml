@@ -1,0 +1,18 @@
+# Render Blueprint — one persistent service that runs the simulator + cloud
+# backend + edge agent and serves the dashboard. Push this repo to GitHub, then
+# in Render: New + → Blueprint → pick the repo.
+# Free tier sleeps after ~15 min idle and wakes on the next request (cold start).
+services:
+  - type: web
+    name: fleetview
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: FLEET_SIZE
+        value: "24"

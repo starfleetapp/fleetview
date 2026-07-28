@@ -1,0 +1,11 @@
+node_modules
+**/node_modules
+web/dist
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+.env
+docs
+qa-*.png
+.git

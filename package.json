@@ -1,0 +1,32 @@
+{
+  "name": "fleetview",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "FleetView — multi-site Starlink fleet monitoring (dish simulator + edge agent + cloud backend + dashboard)",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "setup": "npm install && npm --prefix web install",
+    "build": "npm --prefix web install && npm --prefix web run build",
+    "start": "concurrently -k -n SIM,SRV,AGENT -c magenta,cyan,green \"npm:start:sim\" \"npm:start:server\" \"npm:start:agent\"",
+    "dev": "concurrently -k -n SIM,SRV,AGENT,WEB -c magenta,cyan,green,yellow \"npm:dev:sim\" \"npm:dev:server\" \"npm:dev:agent\" \"npm:dev:web\"",
+    "dev:sim": "node --disable-warning=ExperimentalWarning simulator/fleet.js",
+    "dev:server": "node --disable-warning=ExperimentalWarning server/server.js",
+    "dev:agent": "node --disable-warning=ExperimentalWarning agent/agent.js",
+    "dev:web": "npm --prefix web run dev",
+    "start:sim": "node --disable-warning=ExperimentalWarning simulator/fleet.js",
+    "start:server": "node --disable-warning=ExperimentalWarning server/server.js",
+    "start:agent": "node --disable-warning=ExperimentalWarning agent/agent.js"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.12.5",
+    "@grpc/proto-loader": "^0.7.13",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "nanoid": "^5.0.9",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
