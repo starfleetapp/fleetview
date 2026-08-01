@@ -27,6 +27,62 @@ const SATS = [
       { k: 'Latency', v: 38, dec: 0, u: 'ms' },
     ],
   },
+  {
+    name: 'FV-3 Meridian',
+    cls: 'Polar LEO · Gold MLI relay',
+    img: `${import.meta.env.BASE_URL}assets/satellite-3.png`,
+    desc: 'Polar-orbit relay in full thermal wrap, holding the high-latitude corridor — Svalbard, the Aleutians and every site the geostationary belt can barely see.',
+    stats: [
+      { k: 'Altitude', v: 780, dec: 0, u: 'km' },
+      { k: 'Velocity', v: 26900, dec: 0, u: 'km/h' },
+      { k: 'Downlink', v: 2.2, dec: 1, u: 'Gbps' },
+      { k: 'Uplink', v: 0.9, dec: 1, u: 'Gbps' },
+      { k: 'Sites linked', v: 14, dec: 0, u: '' },
+      { k: 'Latency', v: 42, dec: 0, u: 'ms' },
+    ],
+  },
+  {
+    name: 'FV-4 Halcyon',
+    cls: 'MEO backhaul · Truss bus',
+    img: `${import.meta.env.BASE_URL}assets/satellite-4.png`,
+    desc: 'Mid-orbit workhorse on a long truss spine, trunking aggregated fleet telemetry between continents with wide-span arrays and cold-plate radiators.',
+    stats: [
+      { k: 'Altitude', v: 8062, dec: 0, u: 'km' },
+      { k: 'Velocity', v: 19600, dec: 0, u: 'km/h' },
+      { k: 'Downlink', v: 5.6, dec: 1, u: 'Gbps' },
+      { k: 'Uplink', v: 2.8, dec: 1, u: 'Gbps' },
+      { k: 'Sites linked', v: 26, dec: 0, u: '' },
+      { k: 'Uptime', v: 99.95, dec: 2, u: '%' },
+    ],
+  },
+  {
+    name: 'FV-5 Corvus',
+    cls: 'LEO swarm · CubeSat node',
+    img: `${import.meta.env.BASE_URL}assets/satellite-5.png`,
+    desc: 'Shoebox-class swarm node with petal arrays — dozens of these fill coverage gaps over mining districts and short-dwell maritime lanes.',
+    stats: [
+      { k: 'Altitude', v: 510, dec: 0, u: 'km' },
+      { k: 'Velocity', v: 27400, dec: 0, u: 'km/h' },
+      { k: 'Downlink', v: 1.4, dec: 1, u: 'Gbps' },
+      { k: 'Uplink', v: 0.6, dec: 1, u: 'Gbps' },
+      { k: 'Sites linked', v: 9, dec: 0, u: '' },
+      { k: 'Latency', v: 34, dec: 0, u: 'ms' },
+    ],
+  },
+  {
+    name: 'FV-6 Solstice',
+    cls: 'GEO wide-beam · Mesh reflector',
+    img: `${import.meta.env.BASE_URL}assets/satellite-6.png`,
+    desc: 'The heavy lifter: a deployed gold-mesh umbrella throwing one wide beam across an ocean basin, anchoring coverage where nothing else reaches.',
+    stats: [
+      { k: 'Altitude', v: 35786, dec: 0, u: 'km' },
+      { k: 'Velocity', v: 11070, dec: 0, u: 'km/h' },
+      { k: 'Downlink', v: 6.2, dec: 1, u: 'Gbps' },
+      { k: 'Uplink', v: 3.0, dec: 1, u: 'Gbps' },
+      { k: 'Sites linked', v: 31, dec: 0, u: '' },
+      { k: 'Uptime', v: 99.99, dec: 2, u: '%' },
+    ],
+  },
 ];
 
 function Stat({ s }) {
