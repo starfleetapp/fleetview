@@ -1,18 +1,29 @@
-# Render Blueprint — one persistent service that runs the simulator + cloud
-# backend + edge agent and serves the dashboard. Push this repo to GitHub, then
-# in Render: New + → Blueprint → pick the repo.
-# Free tier sleeps after ~15 min idle and wakes on the next request (cold start).
+# Render Blueprint — one free web service running the whole FleetView stack:
+# dish simulator + cloud backend + edge agent, serving the built dashboard.
+#
+# Deploy:  render.com → New + → Blueprint → pick this repo → Apply.
+# Nothing else to configure; no database, no API keys.
+#
+# Note: `--include=dev` is required. Render sets NODE_ENV=production, which
+# makes npm skip devDependencies — and vite/tailwind live there, so the
+# dashboard build fails without it.
+#
+# Free plan sleeps after ~15 min idle; the next request wakes it (~30s cold
+# start) and the fleet re-seeds from scratch.
 services:
   - type: web
     name: fleetview
     runtime: node
     plan: free
     region: oregon
-    buildCommand: npm install && npm run build
+    buildCommand: npm install --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /health
+    autoDeploy: true
     envVars:
       - key: NODE_VERSION
         value: "24"
+      # Number of simulated dishes. 24 is comfortable on the free plan's
+      # 512 MB; raise it on a paid instance.
       - key: FLEET_SIZE
         value: "24"
