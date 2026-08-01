@@ -204,6 +204,57 @@ body::after {
 /* anime.js reveal initial states (animated in by JS) */
 .h-word, .h-up, .reveal { opacity: 0; will-change: transform, opacity; }
 
+/* ---------- HUD system (marketing overhaul) ---------- */
+
+/* live telemetry strip */
+.hud-bar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 7px 24px; font-size: 10px; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--faint);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(4, 6, 10, 0.85); backdrop-filter: blur(8px);
+  white-space: nowrap; overflow: hidden;
+}
+.hud-sep { opacity: 0.35; font-size: 8px; }
+.hud-dot {
+  display: inline-block; width: 6px; height: 6px; border-radius: 999px;
+  background: var(--online); margin-right: 6px;
+  box-shadow: 0 0 8px var(--online); animation: hudpulse 2.2s ease-in-out infinite;
+}
+@keyframes hudpulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.hud-cursor { margin-left: auto; color: var(--accent); animation: hudblink 1.1s steps(1) infinite; }
+@keyframes hudblink { 50% { opacity: 0; } }
+@media (max-width: 640px) { .hide-s { display: none; } }
+
+/* CRT scanlines over imagery */
+.scanlines {
+  pointer-events: none;
+  background: repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 4px);
+  mix-blend-mode: overlay;
+}
+
+/* scrolling telemetry divider */
+.hud-strip {
+  overflow: hidden; border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.015); padding: 9px 0;
+}
+.hud-strip-inner {
+  display: inline-block; white-space: nowrap;
+  font-size: 10px; letter-spacing: 0.22em; color: var(--faint);
+  animation: hudscroll 60s linear infinite;
+}
+@keyframes hudscroll { from { transform: translateX(0); } to { transform: translateX(-25%); } }
+@media (prefers-reduced-motion: reduce) { .hud-strip-inner { animation: none; } }
+
+/* HUD outline wordmark for the footer */
+.wordmark-outline {
+  font-family: var(--font-display); text-transform: uppercase;
+  letter-spacing: 0.06em; line-height: 0.8; color: transparent;
+  -webkit-text-stroke: 1px rgba(154, 166, 178, 0.22);
+  user-select: none;
+}
+
 /* mono command pill */
 .cmd {
   display: inline-flex; align-items: center; gap: 9px;

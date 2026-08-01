@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import Earth from '../components/three/Earth.jsx';
 import SatellitePanels from '../components/SatellitePanels.jsx';
 import { Logo } from '../components/common.jsx';
+import { TelemetryBar, FigBand, DataStrip, Ticks } from '../components/hud.jsx';
 
 const NAV = [['/product', 'Product'], ['/pricing', 'Pricing'], ['/docs', 'Docs'], ['/company', 'Company']];
 const L1 = ['Mission', 'control'];
@@ -37,38 +38,7 @@ function CmpCell({ v, accent }) {
   return <span className={accent ? '' : 'text-faint'}>{v}</span>;
 }
 
-/* Full-bleed cinematic band with FIG annotation — editorial-orbit motif */
-function FigBand({ img, fig, title, kicker, copy, stats }) {
-  return (
-    <section data-reveal className="relative border-t border-line">
-      <img src={`${import.meta.env.BASE_URL}assets/${img}`} alt="" loading="lazy"
-        className="block w-full object-cover" style={{ height: 'clamp(420px, 68vh, 640px)' }} />
-      <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(4,6,10,.55) 0%, transparent 32%, transparent 50%, rgba(4,6,10,.94) 100%)' }} />
-      <div className="absolute inset-0 flex flex-col justify-between px-6 sm:px-16 py-6 sm:py-9 max-w-[1500px] mx-auto">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <div className="reveal label mb-2" style={{ color: 'var(--accent)' }}>{kicker}</div>
-            <div className="reveal font-display uppercase tracking-[0.14em]" style={{ fontSize: 'clamp(22px, 3.4vw, 38px)' }}>{title}</div>
-          </div>
-          <div className="reveal label hidden sm:block">{fig}</div>
-        </div>
-        <div className="flex flex-wrap items-end justify-between gap-6">
-          <p className="reveal text-dim text-[13px] leading-relaxed max-w-md">{copy}</p>
-          {stats && (
-            <div className="reveal flex gap-8">
-              {stats.map(([n, l]) => (
-                <div key={l}>
-                  <div className="font-display text-2xl sm:text-3xl tracking-[-0.01em]">{n}</div>
-                  <div className="label mt-1">{l}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </section>
-  );
-}
+/* FigBand now lives in components/hud.jsx — shared across all pages */
 
 function Scene() {
   return (
@@ -167,13 +137,16 @@ export default function SatelliteLanding({ onEnter }) {
       </div>
 
       {/* header */}
-      <header className="fixed top-0 inset-x-0 h-16 px-6 sm:px-12 flex items-center gap-2.5" style={{ zIndex: 50 }}>
-        <Logo size={22} />
-        <span className="font-display uppercase tracking-[0.04em] text-[15px]">FleetView</span>
-        <nav className="hidden md:flex items-center gap-7 ml-10 text-[12px] text-faint">
-          {NAV.map(([to, label]) => <Link key={to} to={to} className="hover:text-ink transition">{label}</Link>)}
-        </nav>
-        <button onClick={onEnter} className="btn btn-primary ml-auto text-[12px] py-1.5 px-4">View dashboard</button>
+      <header className="fixed top-0 inset-x-0" style={{ zIndex: 50 }}>
+        <TelemetryBar />
+        <div className="h-14 px-6 sm:px-12 flex items-center gap-2.5" style={{ background: 'linear-gradient(180deg, rgba(4,6,10,0.55), transparent)' }}>
+          <Logo size={22} />
+          <span className="font-display uppercase tracking-[0.04em] text-[15px]">FleetView</span>
+          <nav className="hidden md:flex items-center gap-7 ml-10 mono uppercase tracking-[0.16em] text-[11px] text-faint">
+            {NAV.map(([to, label]) => <Link key={to} to={to} className="hover:text-ink transition">{label}</Link>)}
+          </nav>
+          <button onClick={onEnter} className="btn btn-primary ml-auto text-[12px] py-1.5 px-4">View dashboard</button>
+        </div>
       </header>
 
       {/* HERO */}
@@ -208,14 +181,17 @@ export default function SatelliteLanding({ onEnter }) {
           copy="FleetView watches dishes where nobody is standing next to them — cliff relays, mine sites, research stations. The agent buffers through outages and ships telemetry the moment the sky comes back."
           stats={[['40', 'Sites in demo'], ['24', 'Countries'], ['24/7', 'Unattended']]} />
 
-        <section data-reveal className="max-w-[1300px] mx-auto px-6 sm:px-16 py-20 grid grid-cols-2 md:grid-cols-4 gap-8">
+        <section data-reveal className="max-w-[1300px] mx-auto px-6 sm:px-16 py-16 grid grid-cols-2 md:grid-cols-4 gap-5">
           {STATS.map(([k, v, d, u]) => (
-            <div key={k} className="reveal">
-              <div className="flex items-baseline gap-1"><span className="font-display text-4xl sm:text-5xl tracking-[-0.02em]" data-count={v} data-dec={d}>0</span><span className="text-faint text-sm">{u}</span></div>
+            <div key={k} className="reveal relative p-5 border border-white/[0.07]">
+              <Ticks opacity={0.3} />
+              <div className="flex items-baseline gap-1"><span className="font-display text-4xl sm:text-5xl tracking-[-0.02em]" data-count={v} data-dec={d}>0</span><span className="mono text-faint text-[11px] uppercase">{u}</span></div>
               <div className="label mt-2">{k}</div>
             </div>
           ))}
         </section>
+
+        <DataStrip />
 
         <section data-reveal className="px-6 sm:px-16 py-28 max-w-[1500px] mx-auto border-t border-line">
           <div className="reveal label mb-12">Why FleetView</div>
@@ -233,9 +209,10 @@ export default function SatelliteLanding({ onEnter }) {
         <section data-reveal className="max-w-[1000px] mx-auto px-6 sm:px-16 py-20">
           <div className="reveal label mb-3">Why teams switch</div>
           <h2 className="reveal font-display uppercase text-3xl sm:text-5xl tracking-[-0.01em] mb-10">FleetView vs. Enterprise</h2>
-          <div className="reveal">
-            <div className="flex items-center pb-3">
-              <span className="flex-1" />
+          <div className="reveal relative border border-white/[0.07] p-6">
+            <Ticks />
+            <div className="flex items-center pb-3 border-b border-white/[0.08]">
+              <span className="flex-1 label opacity-60">Capability matrix</span>
               <span className="label w-28 text-center" style={{ color: 'var(--accent)' }}>FleetView</span>
               <span className="label w-28 text-center">Enterprise</span>
             </div>
@@ -243,8 +220,8 @@ export default function SatelliteLanding({ onEnter }) {
               {CMP.map(([label, a, b]) => (
                 <div key={label} className="flex items-center py-3.5 text-[14px]">
                   <span className="flex-1 text-dim">{label}</span>
-                  <span className="w-28 text-center"><CmpCell v={a} accent /></span>
-                  <span className="w-28 text-center"><CmpCell v={b} /></span>
+                  <span className="w-28 text-center mono text-[13px]"><CmpCell v={a} accent /></span>
+                  <span className="w-28 text-center mono text-[13px]"><CmpCell v={b} /></span>
                 </div>
               ))}
             </div>
@@ -256,25 +233,32 @@ export default function SatelliteLanding({ onEnter }) {
           copy="In the live demo, MV Magellan drops offline in the Drake Passage — and the alert fires before anyone would have noticed. Inject the same failure yourself: offline, obstructed, thermal, degraded, high-latency."
           stats={[['5', 'Fault modes'], ['1', 'Command to inject'], ['0', 'Hardware needed']]} />
 
-        <section data-reveal className="max-w-[780px] mx-auto px-6 py-20">
-          <h2 className="reveal font-display uppercase text-3xl tracking-[-0.01em] mb-10">Questions</h2>
-          <div className="space-y-8">
-            {LFAQ.map(([q, a]) => (
-              <div key={q} className="reveal">
-                <h3 className="font-medium mb-1.5">{q}</h3>
-                <p className="text-dim text-[14px] leading-relaxed">{a}</p>
+        <section data-reveal className="max-w-[860px] mx-auto px-6 py-20">
+          <div className="reveal label mb-3" style={{ color: 'var(--accent)' }}>/ Questions</div>
+          <h2 className="reveal font-display uppercase text-3xl tracking-[-0.01em] mb-8">Questions</h2>
+          <div>
+            {LFAQ.map(([q, a], i) => (
+              <div key={q} className="reveal py-5 border-b border-white/[0.06] grid sm:grid-cols-[52px_1fr] gap-x-6 gap-y-1.5">
+                <div className="mono text-[12px] pt-0.5" style={{ color: 'var(--accent)' }}>{String(i + 1).padStart(2, '0')}</div>
+                <div>
+                  <h3 className="font-medium mb-1.5">{q}</h3>
+                  <p className="text-dim text-[14px] leading-relaxed">{a}</p>
+                </div>
               </div>
             ))}
           </div>
         </section>
 
-        <section data-reveal className="px-6 py-32 text-center border-t border-line">
+        <section data-reveal className="px-6 py-32 text-center border-t border-line relative overflow-hidden">
+          <div className="absolute inset-0 scanlines" />
+          <div className="reveal label mb-5" style={{ color: 'var(--accent)' }}>/ Go</div>
           <h2 className="reveal font-display uppercase text-4xl sm:text-6xl tracking-[-0.01em] leading-[0.98]">
             See your whole fleet<br />in one screen.
           </h2>
           <div className="reveal mt-9">
             <button onClick={onEnter} className="btn btn-primary uppercase tracking-[0.06em] text-[14px] px-8 py-3.5">Enter live demo <span className="arr">→</span></button>
           </div>
+          <div className="reveal label mt-10 opacity-50">NO SIGNUP · NO HARDWARE · RUNS IN YOUR BROWSER</div>
         </section>
       </div>
     </div>
