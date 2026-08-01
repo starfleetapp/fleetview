@@ -37,6 +37,39 @@ function CmpCell({ v, accent }) {
   return <span className={accent ? '' : 'text-faint'}>{v}</span>;
 }
 
+/* Full-bleed cinematic band with FIG annotation — editorial-orbit motif */
+function FigBand({ img, fig, title, kicker, copy, stats }) {
+  return (
+    <section data-reveal className="relative border-t border-line">
+      <img src={`${import.meta.env.BASE_URL}assets/${img}`} alt="" loading="lazy"
+        className="block w-full object-cover" style={{ height: 'clamp(420px, 68vh, 640px)' }} />
+      <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, rgba(4,6,10,.55) 0%, transparent 32%, transparent 50%, rgba(4,6,10,.94) 100%)' }} />
+      <div className="absolute inset-0 flex flex-col justify-between px-6 sm:px-16 py-6 sm:py-9 max-w-[1500px] mx-auto">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="reveal label mb-2" style={{ color: 'var(--accent)' }}>{kicker}</div>
+            <div className="reveal font-display uppercase tracking-[0.14em]" style={{ fontSize: 'clamp(22px, 3.4vw, 38px)' }}>{title}</div>
+          </div>
+          <div className="reveal label hidden sm:block">{fig}</div>
+        </div>
+        <div className="flex flex-wrap items-end justify-between gap-6">
+          <p className="reveal text-dim text-[13px] leading-relaxed max-w-md">{copy}</p>
+          {stats && (
+            <div className="reveal flex gap-8">
+              {stats.map(([n, l]) => (
+                <div key={l}>
+                  <div className="font-display text-2xl sm:text-3xl tracking-[-0.01em]">{n}</div>
+                  <div className="label mt-1">{l}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function Scene() {
   return (
     <Canvas camera={{ position: [0, 0.4, 7], fov: 42 }} dpr={[1, 2]} gl={{ antialias: true }} style={{ position: 'fixed', inset: 0 }}>
@@ -149,6 +182,7 @@ export default function SatelliteLanding({ onEnter }) {
           <div className="h-up flex items-center gap-2.5 mb-5">
             <span className="mono uppercase text-[12px] tracking-[0.22em]" style={{ color: 'var(--accent)' }}>Real-time. Global. Reliable.</span>
           </div>
+          <div className="h-up label absolute top-24 right-6 sm:right-16 hidden md:block">FIG. 01 — FLEET TELEMETRY · LOW EARTH ORBIT</div>
           <h1 className="font-display uppercase tracking-[-0.01em]" style={{ fontSize: 'clamp(38px, 7.2vw, 94px)', lineHeight: 0.88, textShadow: '0 4px 50px rgba(0,0,0,0.85)' }}>
             <span className="block whitespace-nowrap">{L1.map((w, i) => <Word key={i} w={w} space={i < L1.length - 1} />)}</span>
             <span className="block whitespace-nowrap">{L2.map((w, i) => <Word key={i} w={w} space={i < L2.length - 1} />)}</span>
@@ -168,6 +202,11 @@ export default function SatelliteLanding({ onEnter }) {
       {/* scroll content */}
       <div className="relative" style={{ zIndex: 5, background: 'var(--bg-0)' }}>
         <SatellitePanels />
+
+        <FigBand img="station.jpg" fig="FIG. 02 — REMOTE SITE · 66°N"
+          kicker="/ Where it runs" title="The edge of coverage"
+          copy="FleetView watches dishes where nobody is standing next to them — cliff relays, mine sites, research stations. The agent buffers through outages and ships telemetry the moment the sky comes back."
+          stats={[['40', 'Sites in demo'], ['24', 'Countries'], ['24/7', 'Unattended']]} />
 
         <section data-reveal className="max-w-[1300px] mx-auto px-6 sm:px-16 py-20 grid grid-cols-2 md:grid-cols-4 gap-8">
           {STATS.map(([k, v, d, u]) => (
@@ -211,6 +250,11 @@ export default function SatelliteLanding({ onEnter }) {
             </div>
           </div>
         </section>
+
+        <FigBand img="vessel.jpg" fig="FIG. 03 — MV MAGELLAN · DRAKE PASSAGE"
+          kicker="/ Built for the worst case" title="When a vessel goes dark"
+          copy="In the live demo, MV Magellan drops offline in the Drake Passage — and the alert fires before anyone would have noticed. Inject the same failure yourself: offline, obstructed, thermal, degraded, high-latency."
+          stats={[['5', 'Fault modes'], ['1', 'Command to inject'], ['0', 'Hardware needed']]} />
 
         <section data-reveal className="max-w-[780px] mx-auto px-6 py-20">
           <h2 className="reveal font-display uppercase text-3xl tracking-[-0.01em] mb-10">Questions</h2>
