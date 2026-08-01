@@ -22,7 +22,20 @@
  * ─────────────────────────────────────────────────────────────────────────
  */
 
-export const REGISTERED = false;
+/**
+ * Flip this to true once the Certificate of Formation is stamped.
+ * This is the real switch — the one that affects what the public sees.
+ */
+const ENTITY_FORMED = false;
+
+/**
+ * Preview escape hatch. `npm run build:entity-preview` sets this and writes to
+ * a separate folder, so you can see exactly how the entity sections look
+ * without touching the real build or making any public claim.
+ */
+const PREVIEWING = import.meta.env.VITE_ENTITY_PREVIEW === '1';
+
+export const REGISTERED = ENTITY_FORMED || PREVIEWING;
 
 export const COMPANY = {
   name: 'Orbital LLC',
@@ -31,13 +44,16 @@ export const COMPANY = {
   jurisdiction: 'Delaware, United States',  // used in the details table
 
   // From the stamped Certificate of Formation.
-  fileNumber: '',        // e.g. '7654321'
-  formed: '',            // e.g. '2026'
+  fileNumber: '',        // from the stamped certificate — leave empty until you have it
+  formed: '13 May 2026',
+
+  // Company website. Empty string = link is not rendered.
+  site: 'https://starfleetapp.github.io/orbital', // e.g. 'https://orbital-llc.com'
 
   // Public legal pages. Empty string = link is not rendered.
   legal: {
-    terms: '',           // e.g. 'https://orbital-llc.com/terms.html'
-    privacy: '',         // e.g. 'https://orbital-llc.com/privacy.html'
+    terms: 'https://starfleetapp.github.io/orbital/terms.html', // e.g. 'https://orbital-llc.com/terms.html'
+    privacy: 'https://starfleetapp.github.io/orbital/privacy.html', // e.g. 'https://orbital-llc.com/privacy.html'
   },
 };
 

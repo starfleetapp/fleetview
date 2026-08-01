@@ -64,13 +64,16 @@ export default function Company() {
               </div>
             ))}
           </div>
-          {legalLinks().length > 0 && (
-            <p className="reveal text-faint text-[13px] mt-5 flex gap-4">
-              {legalLinks().map(([label, href]) => (
-                <a key={label} href={href} className="hover:text-ink transition underline underline-offset-4">{label}</a>
-              ))}
-            </p>
-          )}
+          <p className="reveal text-faint text-[13px] mt-5 flex flex-wrap gap-4">
+            {COMPANY.site && (
+              <a href={COMPANY.site} target="_blank" rel="noopener" className="hover:text-ink transition underline underline-offset-4">
+                {COMPANY.name} ↗
+              </a>
+            )}
+            {legalLinks().map(([label, href]) => (
+              <a key={label} href={href} className="hover:text-ink transition underline underline-offset-4">{label}</a>
+            ))}
+          </p>
         </section>
       )}
 

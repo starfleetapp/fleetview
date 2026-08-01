@@ -8,6 +8,7 @@
     "build": "vite build",
     "build:demo": "vite build --mode demo",
     "build:pages": "vite build --mode pages",
+    "build:entity-preview": "vite build --mode entity --outDir dist-entity",
     "preview": "vite preview --port 5273 --strictPort"
   },
   "dependencies": {
