@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { animate, stagger } from 'animejs';
 import { Logo } from './common.jsx';
+import { COMPANY, entityLine, legalLinks } from '../lib/company.js';
 
 const NAV = [['/product', 'Product'], ['/pricing', 'Pricing'], ['/docs', 'Docs'], ['/company', 'Company']];
 
@@ -71,7 +72,17 @@ export default function MarketingLayout() {
           <FooterCol title="Resources" links={[['/docs', 'Documentation'], ['/company', 'Company']]} />
           <FooterCol title="Get started" links={[['/app', 'Open demo'], ['/company', 'Contact']]} />
         </div>
-        <div className="max-w-[1300px] mx-auto px-6 py-6 mono text-faint text-[11px] uppercase tracking-wide">© 2026 FleetView · $29 / site / mo</div>
+        <div className="max-w-[1300px] mx-auto px-6 py-6 flex flex-wrap gap-x-6 gap-y-2 items-center justify-between mono text-faint text-[11px] uppercase tracking-wide">
+          <span>© {new Date().getFullYear()} {entityLine() ? COMPANY.name : 'FleetView'} · $29 / site / mo</span>
+          {entityLine() && (
+            <span className="normal-case tracking-normal flex flex-wrap gap-x-4 gap-y-1 items-center">
+              <span>{entityLine()}</span>
+              {legalLinks().map(([label, href]) => (
+                <a key={label} href={href} className="hover:text-ink transition">{label}</a>
+              ))}
+            </span>
+          )}
+        </div>
       </footer>
     </div>
   );
