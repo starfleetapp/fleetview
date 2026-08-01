@@ -20,7 +20,32 @@ The backend binds `0.0.0.0:$PORT` (the host injects `PORT`).
 
 Free tier sleeps after ~15 min idle and cold-starts (~30s) on the next visit.
 
-## Option B — Docker host (Railway / Fly.io / any container)
+## Option B — Netlify / any static host (drag-and-drop, no server)
+
+A static host can't run Node, so there's no simulator, agent or API. Instead the
+dashboard ships with a **demo data layer**: a snapshot of real API responses
+captured from a running fleet, replayed in the browser with a random walk over
+the numbers and a stand-in WebSocket. It looks and behaves like the live product
+— 40 dishes, MV Magellan offline in the Drake Passage, working charts and
+obstruction maps — but nothing is actually being polled.
+
+```bash
+npm run build:demo
+```
+
+Then drag **`web/dist`** onto [app.netlify.com/drop](https://app.netlify.com/drop).
+
+Notes:
+- `web/public/_redirects` (`/* /index.html 200`) ships in the build so deep links
+  like `/app/site/mv-magellan` survive a hard refresh.
+- Timestamps are rebased to "now" on load. Without that the snapshot ages past
+  the 3-minute staleness threshold in `classify()` and every dish reads offline.
+- Zipping on Windows: use `zipfile` in Python, **not** `Compress-Archive` — the
+  latter writes backslash separators and Netlify 404s every nested asset.
+- A build made with plain `npm run build` also falls back to demo mode when no
+  backend answers, so it stays useful if dropped on a static host by mistake.
+
+## Option C — Docker host (Railway / Fly.io / any container)
 
 A root `Dockerfile` builds and runs the whole thing.
 

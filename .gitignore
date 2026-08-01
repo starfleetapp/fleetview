@@ -12,3 +12,6 @@ assets/.cache/
 .DS_Store
 Thumbs.db
 .gstack/
+
+# Static demo bundle for drag-and-drop hosting (rebuild with npm run build:demo)
+fleetview-netlify-drop.zip
