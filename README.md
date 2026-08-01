@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/banner.png" alt="FleetView — Mission control for your fleet" width="100%" />
+
 # FleetView
 
 **Open-source monitoring for a fleet of Starlink dishes.**
