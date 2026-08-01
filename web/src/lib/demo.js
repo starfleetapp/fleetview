@@ -11,7 +11,8 @@
  * `maybeInstallDemo()`. A build served by the real server is untouched.
  */
 
-const FIXTURES = '/demo/fixtures.json';
+// BASE_URL is '/' normally, '/fleetview/' on GitHub Pages.
+const FIXTURES = `${import.meta.env.BASE_URL}demo/fixtures.json`;
 const TICK_MS = 2000;
 
 let data = null;

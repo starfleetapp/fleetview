@@ -2,7 +2,7 @@ const SATS = [
   {
     name: 'FV-1 Aurora',
     cls: 'GEO Relay · Ku / Ka-band',
-    img: '/assets/satellite.png',
+    img: `${import.meta.env.BASE_URL}assets/satellite.png`,
     desc: 'Geostationary relay anchoring high-throughput backhaul for maritime and remote-site fleets across the Atlantic basin.',
     stats: [
       { k: 'Altitude', v: 35786, dec: 0, u: 'km' },
@@ -16,7 +16,7 @@ const SATS = [
   {
     name: 'FV-2 Vanta',
     cls: 'LEO Mesh · Optical inter-sat',
-    img: '/assets/satellite-2.png',
+    img: `${import.meta.env.BASE_URL}assets/satellite-2.png`,
     desc: 'Low-earth-orbit mesh node with optical cross-links, delivering sub-40 ms coverage to mining operations and mobile ISP relays.',
     stats: [
       { k: 'Altitude', v: 550, dec: 0, u: 'km' },

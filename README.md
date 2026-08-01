@@ -10,6 +10,12 @@ Live telemetry, obstruction maps and alerting for every site — maritime, minin
 ![Dependencies](https://img.shields.io/badge/native%20deps-none-34f5a3)
 ![Hardware](https://img.shields.io/badge/dish%20required-no-34f5a3)
 
+### [▶ Try the live demo](https://starfleetapp.github.io/fleetview/app)
+
+A 40-dish fleet in your browser — no install, no signup. The demo replays a
+snapshot of real telemetry client-side, so nothing is actually being polled;
+run it locally (below) for the genuine simulator, agent and API.
+
 ![FleetView dashboard](docs/dashboard.png)
 
 </div>

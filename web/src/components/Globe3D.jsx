@@ -14,7 +14,9 @@ function latLon(lat, lon, r = R) {
 }
 
 function EarthMesh() {
-  const [day, night] = useTexture(['/textures/earth-day.jpg', '/textures/earth-night.jpg']);
+  // BASE_URL keeps these working when the app is served from a subpath.
+  const B = import.meta.env.BASE_URL;
+  const [day, night] = useTexture([`${B}textures/earth-day.jpg`, `${B}textures/earth-night.jpg`]);
   [day, night].forEach((t) => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; });
   return (
     <>

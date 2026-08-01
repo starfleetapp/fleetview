@@ -129,7 +129,7 @@ export default function SatelliteLanding({ onEnter }) {
 
       {/* satellite */}
       <div ref={satWrap} className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 2, opacity: 1 - scrolled }}>
-        <img ref={satImg} src="/assets/satellite.png" alt="" className="absolute"
+        <img ref={satImg} src={`${import.meta.env.BASE_URL}assets/satellite.png`} alt="" className="absolute"
           style={{ top: '7%', right: '2%', width: 'min(52vw, 600px)', opacity: 0, filter: 'drop-shadow(0 28px 80px rgba(78,161,255,0.42))', willChange: 'transform' }} />
       </div>
 

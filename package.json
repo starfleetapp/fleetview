@@ -9,6 +9,7 @@
     "setup": "npm install && npm --prefix web install",
     "build": "npm --prefix web install --include=dev && npm --prefix web run build",
     "build:demo": "npm --prefix web install --include=dev && npm --prefix web run build:demo",
+    "build:pages": "npm --prefix web install --include=dev && npm --prefix web run build:pages",
     "start": "concurrently -k -n SIM,SRV,AGENT -c magenta,cyan,green \"npm:start:sim\" \"npm:start:server\" \"npm:start:agent\"",
     "dev": "concurrently -k -n SIM,SRV,AGENT,WEB -c magenta,cyan,green,yellow \"npm:dev:sim\" \"npm:dev:server\" \"npm:dev:agent\" \"npm:dev:web\"",
     "dev:sim": "node --disable-warning=ExperimentalWarning simulator/fleet.js",
