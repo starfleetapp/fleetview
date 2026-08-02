@@ -1,20 +1,25 @@
 import { useEffect, useState } from 'react';
 import { getJSON, send } from '../lib/api.js';
-import { Panel, PanelHead } from '../components/Panel.jsx';
-import { Pill } from '../components/common.jsx';
+import { TuiPanel, TuiKV, Tag } from '../components/tui.jsx';
 import { TYPE_LABEL, ALERT_LABEL } from '../lib/format.js';
 
 const NAV = ['Integrations', 'Notifications', 'Alert rules', 'Sites', 'Team', 'Billing', 'API keys', 'Audit log'];
 
-function Toggle({ on, onClick }) {
-  return <button className="toggle" data-on={on} onClick={onClick} aria-label="toggle" />;
+/* ---------- shared terminal controls ---------- */
+function Switch({ on, onClick, labels = ['[ ON  ]', '[ OFF ]'] }) {
+  return (
+    <button className="tui-chip" data-on={on} onClick={onClick} aria-label="toggle"
+      style={{ color: on ? 'var(--online)' : 'var(--tui-faint)' }}>
+      {on ? labels[0] : labels[1]}
+    </button>
+  );
 }
 function Field({ label, hint, children }) {
   return (
-    <label className="block">
-      <div className="label mb-1.5">{label}</div>
+    <label className="tui-field">
+      <span className="tui-label">{label}</span>
       {children}
-      {hint && <div className="text-faint text-[11px] mt-1">{hint}</div>}
+      {hint && <div className="tui-hint">{hint}</div>}
     </label>
   );
 }
@@ -25,52 +30,75 @@ function randKey() {
 }
 const mask = (k) => k.slice(0, 12) + '•'.repeat(12) + k.slice(-4);
 
-// ── Integrations ──────────────────────────────────────────────
-function IntegrationCard({ icon, name, desc, connected }) {
-  return (
-    <div className="rounded-xl p-4 flex flex-col" style={{ background: 'var(--bg-0)' }}>
-      <div className="w-9 h-9 rounded-lg flex items-center justify-center text-dim mb-3" style={{ background: 'rgba(255,255,255,0.04)' }}>{icon}</div>
-      <div className="font-medium text-[14px]">{name}</div>
-      <div className="text-faint text-[12px] mt-0.5 leading-snug flex-1">{desc}</div>
-      <div className="flex items-center gap-2 mt-3">
-        {connected ? <span className="mono text-[10px] uppercase tracking-wide" style={{ color: 'var(--online)' }}>● Connected</span> : <span className="mono text-faint text-[10px] uppercase tracking-wide">Not connected</span>}
-        <button className="btn py-1.5 text-[12px] ml-auto" style={{ background: 'rgba(255,255,255,0.05)' }}>Configure</button>
-      </div>
-    </div>
-  );
-}
+/* ---------- integrations ---------- */
 function IntegrationsTab() {
   const [integ, setInteg] = useState(null);
   const [saved, setSaved] = useState(false);
   useEffect(() => { getJSON('/api/integrations').then(setInteg).catch(() => {}); }, []);
   async function save() {
-    await send('/api/integrations', 'PUT', { slack_webhook_url: integ.slack_webhook_url || '', email_to: integ.email_to || '', email_from: integ.email_from || '', ...(integ.resend_api_key ? { resend_api_key: integ.resend_api_key } : {}) });
-    setSaved(true); setTimeout(() => setSaved(false), 1500);
+    try {
+      await send('/api/integrations', 'PUT', {
+        slack_webhook_url: integ.slack_webhook_url || '', email_to: integ.email_to || '',
+        email_from: integ.email_from || '', ...(integ.resend_api_key ? { resend_api_key: integ.resend_api_key } : {}),
+      });
+    } catch { /* demo has no writable backend */ }
+    setSaved(true); setTimeout(() => setSaved(false), 1600);
   }
+  const CH = [
+    ['#', 'SLACK', 'Alert delivery to channels', !!integ?.slack_webhook_url],
+    ['@', 'EMAIL', 'Alert delivery via Resend', !!integ?.resend_configured],
+    ['⬡', 'WEBHOOK', 'POST alerts to your endpoint', false],
+  ];
   return (
-    <Panel className="overflow-hidden">
-      <PanelHead>Integrations</PanelHead>
-      <div className="p-4 grid sm:grid-cols-3 gap-3">
-        <IntegrationCard icon="#" name="Slack" desc="Send alerts to Slack channels." connected={!!integ?.slack_webhook_url} />
-        <IntegrationCard icon="@" name="Email" desc="Send alerts via email (Resend)." connected={!!integ?.resend_configured} />
-        <IntegrationCard icon="⬡" name="Webhook" desc="POST alerts to your own endpoint." connected={false} />
-      </div>
-      {integ && (
-        <div className="p-4 pt-0 space-y-3">
-          <div className="label mt-2">Configure delivery</div>
-          <Field label="Slack incoming webhook URL"><input className="input" placeholder="https://hooks.slack.com/services/…" value={integ.slack_webhook_url || ''} onChange={(e) => setInteg({ ...integ, slack_webhook_url: e.target.value })} /></Field>
-          <div className="grid sm:grid-cols-2 gap-3">
-            <Field label="Alert email to"><input className="input" placeholder="ops@company.com" value={integ.email_to || ''} onChange={(e) => setInteg({ ...integ, email_to: e.target.value })} /></Field>
-            <Field label="Resend API key" hint={integ.resend_configured ? 'A key is set — leave blank to keep it.' : 'Enables email delivery.'}><input className="input" type="password" placeholder={integ.resend_configured ? '•••••••• (set)' : 're_…'} onChange={(e) => setInteg({ ...integ, resend_api_key: e.target.value })} /></Field>
-          </div>
-          <button className="btn btn-primary" onClick={save}>{saved ? 'Saved ✓' : 'Save'}</button>
+    <>
+      <TuiPanel title="DELIVERY CHANNELS" right={`${CH.filter((c) => c[3]).length}/${CH.length} LINKED`}>
+        <div className="tui-scroll">
+          <table className="tui-table" style={{ minWidth: 520 }}>
+            <thead><tr><th>ID</th><th>CHANNEL</th><th>PURPOSE</th><th>STATE</th></tr></thead>
+            <tbody>
+              {CH.map(([icon, name, desc, on]) => (
+                <tr key={name}>
+                  <td style={{ color: 'var(--tui-accent)' }}>{icon}</td>
+                  <td style={{ color: 'var(--tui-ink)' }}>{name}</td>
+                  <td className="tui-dim2">{desc}</td>
+                  <td style={{ color: on ? 'var(--online)' : 'var(--tui-faint)' }}>
+                    {on ? '[ LINKED ]' : '[  --  ]'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
+      </TuiPanel>
+
+      {integ && (
+        <TuiPanel title="CONFIGURE DELIVERY">
+          <div className="p-4 space-y-4">
+            <Field label="SLACK INCOMING WEBHOOK">
+              <input className="tui-input" placeholder="https://hooks.slack.com/services/…"
+                value={integ.slack_webhook_url || ''} onChange={(e) => setInteg({ ...integ, slack_webhook_url: e.target.value })} />
+            </Field>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Field label="ALERT EMAIL TO">
+                <input className="tui-input" placeholder="ops@company.com"
+                  value={integ.email_to || ''} onChange={(e) => setInteg({ ...integ, email_to: e.target.value })} />
+              </Field>
+              <Field label="RESEND API KEY"
+                hint={integ.resend_configured ? 'A key is set — leave blank to keep it.' : 'Enables email delivery.'}>
+                <input className="tui-input" type="password"
+                  placeholder={integ.resend_configured ? '•••••••• (set)' : 're_…'}
+                  onChange={(e) => setInteg({ ...integ, resend_api_key: e.target.value })} />
+              </Field>
+            </div>
+            <button className="tui-btn" data-primary="true" onClick={save}>{saved ? '[ SAVED ✓ ]' : '[ SAVE ]'}</button>
+          </div>
+        </TuiPanel>
       )}
-    </Panel>
+    </>
   );
 }
 
-// ── Notifications ─────────────────────────────────────────────
+/* ---------- notifications ---------- */
 const NOTIF_EVENTS = ['Site offline', 'Site degraded', 'Obstruction detected', 'Site recovered', 'Weekly digest'];
 function NotificationsTab() {
   const [chan, setChan] = useState({ email: true, slack: true, sms: false });
@@ -79,262 +107,334 @@ function NotificationsTab() {
   const flip = (e, k) => setM((s) => ({ ...s, [e]: { ...s[e], [k]: !s[e][k] } }));
   return (
     <>
-      <Panel className="overflow-hidden">
-        <PanelHead>Channels</PanelHead>
-        <div className="p-4 space-y-1">
-          {[['email', 'Email', 'ops@company.com'], ['slack', 'Slack', '#fleet-alerts'], ['sms', 'SMS', '+1 (555) 010-2233']].map(([k, name, sub]) => (
-            <div key={k} className="flex items-center gap-3 py-2">
-              <div className="flex-1"><div className="text-[14px]">{name}</div><div className="text-faint text-[12px] mono">{sub}</div></div>
-              <Toggle on={chan[k]} onClick={() => setChan((c) => ({ ...c, [k]: !c[k] }))} />
-            </div>
-          ))}
+      <TuiPanel title="CHANNELS">
+        <div className="tui-scroll">
+          <table className="tui-table" style={{ minWidth: 480 }}>
+            <thead><tr><th>CHANNEL</th><th>TARGET</th><th>STATE</th></tr></thead>
+            <tbody>
+              {[['email', 'EMAIL', 'ops@company.com'], ['slack', 'SLACK', '#fleet-alerts'], ['sms', 'SMS', '+1 (555) 010-2233']].map(([k, name, sub]) => (
+                <tr key={k}>
+                  <td style={{ color: 'var(--tui-ink)' }}>{name}</td>
+                  <td className="tui-dim2">{sub}</td>
+                  <td><Switch on={chan[k]} onClick={() => setChan((c) => ({ ...c, [k]: !c[k] }))} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </Panel>
-      <Panel className="overflow-hidden" delay={0.05}>
-        <PanelHead>Per-event</PanelHead>
-        <div className="p-4">
-          <div className="flex items-center pb-2"><span className="flex-1" /><span className="label w-14 text-center">Email</span><span className="label w-14 text-center">Slack</span></div>
-          <div className="divide-y divide-white/[0.05]">
-            {NOTIF_EVENTS.map((e) => (
-              <div key={e} className="flex items-center py-2.5">
-                <span className="flex-1 text-[13.5px] text-dim">{e}</span>
-                <span className="w-14 flex justify-center"><Toggle on={m[e].email} onClick={() => flip(e, 'email')} /></span>
-                <span className="w-14 flex justify-center"><Toggle on={m[e].slack} onClick={() => flip(e, 'slack')} /></span>
-              </div>
-            ))}
-          </div>
+      </TuiPanel>
+
+      <TuiPanel title="PER-EVENT ROUTING">
+        <div className="tui-scroll">
+          <table className="tui-table" style={{ minWidth: 520 }}>
+            <thead><tr><th>EVENT</th><th>EMAIL</th><th>SLACK</th></tr></thead>
+            <tbody>
+              {NOTIF_EVENTS.map((e) => (
+                <tr key={e}>
+                  <td style={{ color: 'var(--tui-ink)' }}>{e.toUpperCase()}</td>
+                  <td><Switch on={m[e].email} onClick={() => flip(e, 'email')} labels={['[ ✓ ]', '[ · ]']} /></td>
+                  <td><Switch on={m[e].slack} onClick={() => flip(e, 'slack')} labels={['[ ✓ ]', '[ · ]']} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </Panel>
-      <Panel className="overflow-hidden" delay={0.1}>
-        <PanelHead>Quiet hours</PanelHead>
-        <div className="p-4 flex items-center gap-3"><div className="flex-1 text-[14px]">Pause non-critical alerts <span className="mono text-dim">22:00 – 07:00</span></div><Toggle on={quiet} onClick={() => setQuiet((q) => !q)} /></div>
-      </Panel>
+      </TuiPanel>
+
+      <TuiPanel title="QUIET HOURS">
+        <div className="p-4 flex items-center gap-4 mono" style={{ fontSize: 12 }}>
+          <span className="tui-dim2 flex-1">PAUSE NON-CRITICAL ALERTS <span style={{ color: 'var(--tui-ink)' }}>22:00 – 07:00</span></span>
+          <Switch on={quiet} onClick={() => setQuiet((q) => !q)} />
+        </div>
+      </TuiPanel>
     </>
   );
 }
 
-// ── Alert rules ───────────────────────────────────────────────
+/* ---------- alert rules ---------- */
 function ruleDesc(r) {
-  if (r.type === 'site_down') return `Down for ${Math.round(r.window_s / 60)}m`;
-  if (r.type === 'high_latency') return `> ${r.threshold} ms for ${Math.round(r.window_s / 60)}m`;
-  if (r.type === 'high_drop' || r.type === 'obstruction') return `> ${(r.threshold * 100).toFixed(0)}% for ${Math.round(r.window_s / 60)}m`;
+  const m = Math.round(r.window_s / 60);
+  if (r.type === 'site_down') return `DOWN ${m}M`;
+  if (r.type === 'high_latency') return `> ${r.threshold}MS / ${m}M`;
+  if (r.type === 'high_drop' || r.type === 'obstruction') return `> ${(r.threshold * 100).toFixed(0)}% / ${m}M`;
   return String(r.threshold);
 }
 function AlertRulesTab() {
   const [rules, setRules] = useState([]);
-  useEffect(() => { getJSON('/api/alert-rules').then((d) => setRules(d.rules)).catch(() => {}); }, []);
+  useEffect(() => { getJSON('/api/alert-rules').then((d) => setRules(d.rules || [])).catch(() => {}); }, []);
   async function toggle(r) {
     const next = !r.enabled;
     setRules((rs) => rs.map((x) => (x.id === r.id ? { ...x, enabled: next } : x)));
-    await send(`/api/alert-rules/${r.id}`, 'PATCH', { threshold: r.threshold, window_s: r.window_s, channels: r.channels, enabled: next });
+    try {
+      await send(`/api/alert-rules/${r.id}`, 'PATCH', { threshold: r.threshold, window_s: r.window_s, channels: r.channels, enabled: next });
+    } catch { /* demo */ }
   }
   return (
-    <Panel className="overflow-hidden">
-      <PanelHead>Alert rules</PanelHead>
-      <div className="divide-y divide-white/[0.05]">
-        {rules.map((r) => (
-          <div key={r.id} className="flex items-center gap-3 px-4 py-3">
-            <div className="flex-1">
-              <div className="font-medium text-[13.5px]">{ALERT_LABEL[r.type] || r.type}</div>
-              <div className="text-faint text-[12px] mono">{ruleDesc(r)} · {r.channels.join(', ')}</div>
-            </div>
-            <Toggle on={r.enabled} onClick={() => toggle(r)} />
-          </div>
-        ))}
-        {!rules.length && <div className="text-dim text-sm py-6 text-center">Loading rules…</div>}
+    <TuiPanel title="ALERT RULES" right={`${rules.filter((r) => r.enabled).length}/${rules.length} ARMED`}>
+      <div className="tui-scroll">
+        <table className="tui-table" style={{ minWidth: 620 }}>
+          <thead><tr><th>RULE</th><th>THRESHOLD</th><th>CHANNELS</th><th>STATE</th></tr></thead>
+          <tbody>
+            {rules.map((r) => (
+              <tr key={r.id}>
+                <td style={{ color: 'var(--tui-ink)' }}>{(ALERT_LABEL[r.type] || r.type).toUpperCase()}</td>
+                <td>{ruleDesc(r)}</td>
+                <td className="tui-dim2">{(r.channels || []).join(' · ').toUpperCase() || '—'}</td>
+                <td><Switch on={!!r.enabled} onClick={() => toggle(r)} labels={['[ ARMED ]', '[ OFF   ]']} /></td>
+              </tr>
+            ))}
+            {!rules.length && <tr><td colSpan={4} className="tui-dim2" style={{ textAlign: 'center', padding: '30px 0' }}>LOADING RULES…</td></tr>}
+          </tbody>
+        </table>
       </div>
-    </Panel>
+    </TuiPanel>
   );
 }
 
-// ── Sites ─────────────────────────────────────────────────────
+/* ---------- sites ---------- */
 function SitesTab() {
   const [sites, setSites] = useState([]);
   const [form, setForm] = useState({ name: '', type: 'office', region: '' });
   const [enrolled, setEnrolled] = useState(null);
   const [copied, setCopied] = useState('');
-  useEffect(() => { getJSON('/api/fleet').then((d) => setSites(d.sites)).catch(() => {}); }, []);
-  async function enroll(e) { e.preventDefault(); if (!form.name) return; setEnrolled(await send('/api/enroll', 'POST', form)); }
+  useEffect(() => { getJSON('/api/fleet').then((d) => setSites(d.sites || [])).catch(() => {}); }, []);
+  async function enroll(e) {
+    e.preventDefault();
+    if (!form.name) return;
+    try { setEnrolled(await send('/api/enroll', 'POST', form)); }
+    catch { setEnrolled({ token: 'flv_demo_token_not_persisted', docker: 'docker run … fleetview-agent' }); }
+  }
   const copy = (t, w) => { navigator.clipboard?.writeText(t); setCopied(w); setTimeout(() => setCopied(''), 1500); };
   return (
     <>
-      <Panel className="overflow-hidden">
-        <PanelHead right={<span className="mono text-faint text-[11px]">{sites.length} sites</span>}>Sites</PanelHead>
-        <div className="divide-y divide-white/[0.05] max-h-[380px] overflow-y-auto">
-          {sites.map((s) => (
-            <div key={s.id} className="flex items-center gap-3 px-4 py-2.5 text-[13px]">
-              <span style={{ width: 64 }}><Pill status={s.status}>{s.status}</Pill></span>
-              <span className="font-medium flex-1 truncate">{s.name}</span>
-              <span className="text-faint hidden sm:block w-28">{TYPE_LABEL[s.type]}</span>
-              <span className="text-dim w-32 text-right truncate hidden md:block">{s.region}</span>
-            </div>
-          ))}
+      <TuiPanel title="REGISTERED SITES" right={`${sites.length} NODES`}>
+        <div className="tui-scroll" style={{ maxHeight: 340, overflowY: 'auto' }}>
+          <table className="tui-table" style={{ minWidth: 560 }}>
+            <thead><tr><th>STATUS</th><th>SITE</th><th>TYPE</th><th>REGION</th></tr></thead>
+            <tbody>
+              {sites.map((s) => (
+                <tr key={s.id}>
+                  <td><Tag status={s.status} obstructed={s.currently_obstructed} /></td>
+                  <td style={{ color: 'var(--tui-ink)' }}>{s.name.toUpperCase()}</td>
+                  <td className="tui-dim2">{(TYPE_LABEL[s.type] || s.type || '').toUpperCase()}</td>
+                  <td className="tui-dim2">{(s.region || '').toUpperCase()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </Panel>
-      <Panel className="overflow-hidden" delay={0.05}>
-        <PanelHead>Add a site</PanelHead>
-        <div className="p-4">
-          <form onSubmit={enroll} className="grid sm:grid-cols-3 gap-3 items-end">
-            <Field label="Site name"><input className="input" placeholder="MV New Vessel" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></Field>
-            <Field label="Type"><select className="input" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>{Object.entries(TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></Field>
-            <Field label="Region"><input className="input" placeholder="North Sea" value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} /></Field>
-            <button className="btn btn-primary w-fit sm:col-span-3" type="submit">Generate enrollment</button>
-          </form>
+      </TuiPanel>
+
+      <TuiPanel title="ENROLL NEW SITE">
+        <form onSubmit={enroll} className="p-4 space-y-4">
+          <div className="grid sm:grid-cols-3 gap-4">
+            <Field label="SITE NAME">
+              <input className="tui-input" placeholder="MV NEW VESSEL" value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            </Field>
+            <Field label="TYPE">
+              <select className="tui-input" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+                {Object.entries(TYPE_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </Field>
+            <Field label="REGION">
+              <input className="tui-input" placeholder="NORTH SEA" value={form.region}
+                onChange={(e) => setForm({ ...form, region: e.target.value })} />
+            </Field>
+          </div>
+          <button className="tui-btn" data-primary="true" type="submit">[ GENERATE ENROLLMENT ]</button>
+
           {enrolled && (
-            <div className="grid sm:grid-cols-2 gap-3 mt-4">
-              <div><div className="label mb-1.5">Enrollment token</div><div className="flex gap-2"><code className="input font-mono text-[12px] truncate">{enrolled.token}</code><button className="btn py-1.5" onClick={() => copy(enrolled.token, 't')}>{copied === 't' ? '✓' : 'Copy'}</button></div></div>
-              <div><div className="label mb-1.5">Install command</div><div className="flex gap-2"><code className="input font-mono text-[12px] truncate">docker run … fleetview-agent</code><button className="btn py-1.5" onClick={() => copy(enrolled.docker, 'c')}>{copied === 'c' ? '✓' : 'Copy'}</button></div></div>
+            <div className="space-y-3 pt-2">
+              <div>
+                <div className="tui-label" style={{ marginBottom: 6 }}>ENROLLMENT TOKEN</div>
+                <div className="flex gap-2">
+                  <code className="tui-input" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{enrolled.token}</code>
+                  <button type="button" className="tui-btn" onClick={() => copy(enrolled.token, 't')}>{copied === 't' ? '[ ✓ ]' : '[ COPY ]'}</button>
+                </div>
+              </div>
+              <div>
+                <div className="tui-label" style={{ marginBottom: 6 }}>INSTALL COMMAND</div>
+                <div className="flex gap-2">
+                  <code className="tui-input" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>docker run … fleetview-agent</code>
+                  <button type="button" className="tui-btn" onClick={() => copy(enrolled.docker, 'c')}>{copied === 'c' ? '[ ✓ ]' : '[ COPY ]'}</button>
+                </div>
+              </div>
             </div>
           )}
-        </div>
-      </Panel>
+        </form>
+      </TuiPanel>
     </>
   );
 }
 
-// ── Team ──────────────────────────────────────────────────────
+/* ---------- team ---------- */
 const TEAM = [
-  ['Kingsley Teo', 'kingsley@fleetview.io', 'Owner'],
-  ['Mara Voss', 'mara@fleetview.io', 'Admin'],
-  ['Diego Santos', 'diego@fleetview.io', 'Operator'],
-  ['Lena Park', 'lena@fleetview.io', 'Viewer'],
+  ['Kingsley Teo', 'kingsley@fleetview.io', 'OWNER'],
+  ['Mara Voss', 'mara@fleetview.io', 'ADMIN'],
+  ['Diego Santos', 'diego@fleetview.io', 'OPERATOR'],
+  ['Lena Park', 'lena@fleetview.io', 'VIEWER'],
 ];
 function TeamTab() {
   const [invite, setInvite] = useState('');
   const [sent, setSent] = useState(false);
   return (
-    <Panel className="overflow-hidden">
-      <PanelHead right={<span className="mono text-faint text-[11px]">{TEAM.length} members</span>}>Team</PanelHead>
-      <div className="p-4">
-        <div className="flex flex-wrap gap-2 mb-5">
-          <input className="input flex-1 min-w-[180px]" placeholder="teammate@company.com" value={invite} onChange={(e) => setInvite(e.target.value)} />
-          <select className="input w-auto"><option>Viewer</option><option>Operator</option><option>Admin</option></select>
-          <button className="btn btn-primary whitespace-nowrap" onClick={() => { if (invite) { setSent(true); setInvite(''); setTimeout(() => setSent(false), 1600); } }}>{sent ? 'Invited ✓' : 'Invite'}</button>
+    <TuiPanel title="TEAM ACCESS" right={`${TEAM.length} MEMBERS`}>
+      <div className="p-4 flex flex-wrap gap-2 items-end">
+        <div className="flex-1 min-w-[200px]">
+          <Field label="INVITE BY EMAIL">
+            <input className="tui-input" placeholder="teammate@company.com" value={invite} onChange={(e) => setInvite(e.target.value)} />
+          </Field>
         </div>
-        <div className="divide-y divide-white/[0.05]">
-          {TEAM.map(([name, email, role], i) => (
-            <div key={email} className="flex items-center gap-3 py-3">
-              <span className="w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-medium shrink-0" style={{ background: 'rgba(78,161,255,0.15)', color: 'var(--accent)' }}>{name.split(' ').map((p) => p[0]).join('')}</span>
-              <div className="flex-1 min-w-0"><div className="text-[14px] truncate">{name}{i === 0 && <span className="text-faint text-[11px] ml-2">You</span>}</div><div className="text-faint text-[12px] truncate">{email}</div></div>
-              <span className="mono text-dim text-[11px] uppercase tracking-wide">{role}</span>
-            </div>
-          ))}
-        </div>
+        <select className="tui-input" style={{ width: 'auto' }}><option>VIEWER</option><option>OPERATOR</option><option>ADMIN</option></select>
+        <button className="tui-btn" data-primary="true"
+          onClick={() => { if (invite) { setSent(true); setInvite(''); setTimeout(() => setSent(false), 1600); } }}>
+          {sent ? '[ INVITED ✓ ]' : '[ INVITE ]'}
+        </button>
       </div>
-    </Panel>
+      <div className="tui-scroll">
+        <table className="tui-table" style={{ minWidth: 520 }}>
+          <thead><tr><th>MEMBER</th><th>EMAIL</th><th>ROLE</th></tr></thead>
+          <tbody>
+            {TEAM.map(([name, email, role], i) => (
+              <tr key={email}>
+                <td style={{ color: 'var(--tui-ink)' }}>{name.toUpperCase()}{i === 0 && <span className="tui-dim2"> · YOU</span>}</td>
+                <td className="tui-dim2">{email}</td>
+                <td style={{ color: i === 0 ? 'var(--tui-accent)' : undefined }}>{role}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </TuiPanel>
   );
 }
 
-// ── Billing ───────────────────────────────────────────────────
-const INVOICES = [['Jun 1, 2026', '$960.00'], ['May 1, 2026', '$960.00'], ['Apr 1, 2026', '$912.00']];
+/* ---------- billing ---------- */
+const INVOICES = [['2026-06-01', '$960.00'], ['2026-05-01', '$960.00'], ['2026-04-01', '$912.00']];
 function BillingTab() {
   return (
     <>
-      <Panel className="overflow-hidden">
-        <PanelHead>Plan</PanelHead>
-        <div className="p-4 flex flex-wrap items-center gap-x-10 gap-y-4">
-          <div><div className="label">Plan</div><div className="text-[15px] mt-1">Growth</div></div>
-          <div><div className="label">Sites</div><div className="text-[15px] mt-1 mono">40 / 100</div></div>
-          <div><div className="label">Monthly</div><div className="text-[15px] mt-1 mono">$960.00</div></div>
-          <div><div className="label">Next invoice</div><div className="text-[15px] mt-1">Jul 1, 2026</div></div>
-          <button className="btn btn-primary ml-auto">Manage plan</button>
+      <TuiPanel title="PLAN">
+        <TuiKV rows={[
+          ['PLAN', 'GROWTH'],
+          ['SITES', '40 / 100'],
+          ['MONTHLY', '$960.00'],
+          ['NEXT INVOICE', '2026-07-01'],
+          ['PAYMENT METHOD', 'VISA •••• 4242 · EXP 08/29'],
+        ]} />
+      </TuiPanel>
+      <TuiPanel title="INVOICES" right={`${INVOICES.length} ON FILE`}>
+        <div className="tui-scroll">
+          <table className="tui-table" style={{ minWidth: 460 }}>
+            <thead><tr><th>DATE</th><th>AMOUNT</th><th>STATE</th><th>DOC</th></tr></thead>
+            <tbody>
+              {INVOICES.map(([d, a]) => (
+                <tr key={d}>
+                  <td style={{ color: 'var(--tui-ink)' }}>{d}</td>
+                  <td>{a}</td>
+                  <td style={{ color: 'var(--online)' }}>[ PAID ]</td>
+                  <td><button className="tui-chip">[ PDF ]</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </Panel>
-      <Panel className="overflow-hidden" delay={0.05}>
-        <PanelHead>Payment method</PanelHead>
-        <div className="p-4 flex items-center gap-3 flex-wrap"><span className="mono text-dim">Visa •••• 4242</span><span className="text-faint text-[12px]">expires 08/29</span><button className="btn ml-auto" style={{ background: 'rgba(255,255,255,0.05)' }}>Update</button></div>
-      </Panel>
-      <Panel className="overflow-hidden" delay={0.1}>
-        <PanelHead>Invoices</PanelHead>
-        <div className="divide-y divide-white/[0.05]">
-          {INVOICES.map(([d, a]) => (
-            <div key={d} className="flex items-center gap-3 px-4 py-2.5 text-[13px]">
-              <span className="flex-1">{d}</span>
-              <span className="mono text-dim">{a}</span>
-              <span className="mono text-[10px] uppercase tracking-wide" style={{ color: 'var(--online)' }}>Paid</span>
-              <button className="btn py-1 text-[12px]" style={{ background: 'rgba(255,255,255,0.05)' }}>PDF</button>
-            </div>
-          ))}
-        </div>
-      </Panel>
+      </TuiPanel>
     </>
   );
 }
 
-// ── API keys ──────────────────────────────────────────────────
+/* ---------- api keys ---------- */
 function ApiKeysTab() {
   const [keys, setKeys] = useState([
-    { id: 1, name: 'Production', key: 'flv_live_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6', created: 'Apr 12, 2026', used: '2 hours ago' },
-    { id: 2, name: 'CI · read-only', key: 'flv_live_z9y8x7w6v5u4t3s2r1q0p9o8n7m6l5k4', created: 'Mar 3, 2026', used: '5 days ago' },
+    { id: 1, name: 'Production', key: 'flv_live_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6', created: '2026-04-12', used: '2h ago' },
+    { id: 2, name: 'CI · read-only', key: 'flv_live_z9y8x7w6v5u4t3s2r1q0p9o8n7m6l5k4', created: '2026-03-03', used: '5d ago' },
   ]);
   const [name, setName] = useState('');
   const [fresh, setFresh] = useState(null);
   const [reveal, setReveal] = useState(null);
   const [copied, setCopied] = useState(false);
   function create() {
-    const item = { id: Date.now(), name: name.trim() || 'Untitled key', key: randKey(), created: 'Just now', used: 'never' };
+    const item = { id: Date.now(), name: name.trim() || 'Untitled key', key: randKey(), created: 'JUST NOW', used: 'never' };
     setKeys((ks) => [item, ...ks]); setFresh(item); setName('');
   }
   function revoke(id) { setKeys((ks) => ks.filter((k) => k.id !== id)); if (fresh?.id === id) setFresh(null); }
   return (
-    <Panel className="overflow-hidden">
-      <PanelHead right={<span className="mono text-faint text-[11px]">{keys.length} keys</span>}>API keys</PanelHead>
-      <div className="p-4">
-        <div className="flex flex-wrap gap-2 mb-4">
-          <input className="input flex-1 min-w-[180px]" placeholder="Key name (e.g. Production)" value={name} onChange={(e) => setName(e.target.value)} />
-          <button className="btn btn-primary whitespace-nowrap" onClick={create}>Generate key</button>
+    <TuiPanel title="API KEYS" right={`${keys.length} ACTIVE`}>
+      <div className="p-4 flex flex-wrap gap-2 items-end">
+        <div className="flex-1 min-w-[200px]">
+          <Field label="KEY NAME">
+            <input className="tui-input" placeholder="PRODUCTION" value={name} onChange={(e) => setName(e.target.value)} />
+          </Field>
         </div>
-        {fresh && (
-          <div className="rounded-xl p-3 mb-4" style={{ background: 'rgba(78,161,255,0.10)' }}>
-            <div className="label mb-1.5" style={{ color: 'var(--accent)' }}>New key — copy it now, it won't be shown again</div>
-            <div className="flex gap-2 items-center"><code className="mono text-[12px] text-ink truncate flex-1">{fresh.key}</code><button className="btn py-1 text-[12px]" style={{ background: 'rgba(255,255,255,0.06)' }} onClick={() => { navigator.clipboard?.writeText(fresh.key); setCopied(true); setTimeout(() => setCopied(false), 1500); }}>{copied ? '✓ Copied' : 'Copy'}</button></div>
-          </div>
-        )}
-        <div className="divide-y divide-white/[0.05]">
-          {keys.map((k) => (
-            <div key={k.id} className="flex items-center gap-3 py-3 text-[13px]">
-              <div className="flex-1 min-w-0">
-                <div className="font-medium">{k.name}</div>
-                <code className="mono text-faint text-[12px]">{reveal === k.id ? k.key : mask(k.key)}</code>
-              </div>
-              <span className="text-faint text-[11px] hidden sm:block whitespace-nowrap">{k.created}</span>
-              <span className="text-faint text-[11px] hidden md:block whitespace-nowrap">used {k.used}</span>
-              <button className="btn py-1 text-[12px]" style={{ background: 'rgba(255,255,255,0.05)' }} onClick={() => setReveal(reveal === k.id ? null : k.id)}>{reveal === k.id ? 'Hide' : 'Show'}</button>
-              <button className="btn py-1 text-[12px]" style={{ color: 'var(--offline)' }} onClick={() => revoke(k.id)}>Revoke</button>
-            </div>
-          ))}
-          {!keys.length && <div className="text-dim text-sm py-6 text-center">No API keys yet — generate one above.</div>}
-        </div>
+        <button className="tui-btn" data-primary="true" onClick={create}>[ GENERATE KEY ]</button>
       </div>
-    </Panel>
+
+      {fresh && (
+        <div className="mx-4 mb-4 p-3" style={{ border: '1px solid var(--tui-accent)', background: 'rgba(78,161,255,0.08)' }}>
+          <div className="tui-label" style={{ color: 'var(--tui-accent)', marginBottom: 6 }}>
+            NEW KEY — COPY IT NOW, IT WILL NOT BE SHOWN AGAIN
+          </div>
+          <div className="flex gap-2 items-center">
+            <code className="mono flex-1" style={{ fontSize: 12, color: 'var(--tui-ink)', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fresh.key}</code>
+            <button className="tui-btn" onClick={() => { navigator.clipboard?.writeText(fresh.key); setCopied(true); setTimeout(() => setCopied(false), 1500); }}>
+              {copied ? '[ ✓ COPIED ]' : '[ COPY ]'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="tui-scroll">
+        <table className="tui-table" style={{ minWidth: 700 }}>
+          <thead><tr><th>NAME</th><th>KEY</th><th>CREATED</th><th>LAST USED</th><th>ACTIONS</th></tr></thead>
+          <tbody>
+            {keys.map((k) => (
+              <tr key={k.id}>
+                <td style={{ color: 'var(--tui-ink)' }}>{k.name.toUpperCase()}</td>
+                <td className="tui-dim2">{reveal === k.id ? k.key : mask(k.key)}</td>
+                <td className="tui-dim2">{k.created}</td>
+                <td className="tui-dim2">{k.used}</td>
+                <td>
+                  <button className="tui-chip" onClick={() => setReveal(reveal === k.id ? null : k.id)}>
+                    {reveal === k.id ? '[ HIDE ]' : '[ SHOW ]'}
+                  </button>
+                  <button className="tui-chip" style={{ color: 'var(--offline)', marginLeft: 10 }} onClick={() => revoke(k.id)}>[ REVOKE ]</button>
+                </td>
+              </tr>
+            ))}
+            {!keys.length && <tr><td colSpan={5} className="tui-dim2" style={{ textAlign: 'center', padding: '30px 0' }}>NO KEYS — GENERATE ONE ABOVE</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </TuiPanel>
   );
 }
 
-// ── Audit log ─────────────────────────────────────────────────
+/* ---------- audit ---------- */
 const AUDIT = [
-  ['12:31', 'Kingsley Teo', 'Generated API key “Production”'],
-  ['09:02', 'Mara Voss', 'Disabled rule “Obstruction detected”'],
-  ['08:47', 'System', 'Failover triggered on Atacama Copper'],
-  ['Yesterday', 'Diego Santos', 'Added site “MV New Vessel”'],
-  ['Yesterday', 'Kingsley Teo', 'Updated Slack integration'],
-  ['Jun 20', 'Lena Park', 'Signed in from Kuala Lumpur, MY'],
-  ['Jun 19', 'System', 'Alert fired — MV Magellan offline'],
-  ['Jun 18', 'Mara Voss', 'Invited diego@fleetview.io (Operator)'],
+  ['12:31', 'KINGSLEY TEO', 'Generated API key "Production"'],
+  ['09:02', 'MARA VOSS', 'Disabled rule "Obstruction detected"'],
+  ['08:47', 'SYSTEM', 'Failover triggered on Atacama Copper'],
+  ['-1d', 'DIEGO SANTOS', 'Added site "MV New Vessel"'],
+  ['-1d', 'KINGSLEY TEO', 'Updated Slack integration'],
+  ['-13d', 'LENA PARK', 'Signed in from Kuala Lumpur, MY'],
+  ['-14d', 'SYSTEM', 'Alert fired — MV Magellan offline'],
+  ['-15d', 'MARA VOSS', 'Invited diego@fleetview.io (Operator)'],
 ];
 function AuditTab() {
   return (
-    <Panel className="overflow-hidden">
-      <PanelHead>Audit log</PanelHead>
-      <div className="divide-y divide-white/[0.05]">
+    <TuiPanel title="AUDIT LOG" right={`${AUDIT.length} ENTRIES`}>
+      <div className="tui-log mono">
         {AUDIT.map(([t, who, what], i) => (
-          <div key={i} className="flex items-center gap-3 px-4 py-2.5 text-[13px]">
-            <span className="mono text-faint text-[11px] w-20 shrink-0">{t}</span>
-            <span className="text-dim w-32 shrink-0 truncate hidden sm:block">{who}</span>
-            <span className="text-ink flex-1 truncate">{what}</span>
+          <div key={i} className="tui-log-row">
+            <span className="tui-log-ts" style={{ minWidth: 46 }}>{t}</span>
+            <span style={{ color: who === 'SYSTEM' ? 'var(--tui-accent)' : 'var(--tui-ink)', minWidth: 130 }}>{who}</span>
+            <span className="tui-log-msg">{what}</span>
           </div>
         ))}
       </div>
-    </Panel>
+    </TuiPanel>
   );
 }
 
@@ -346,19 +446,37 @@ const TABS = {
 export default function Settings() {
   const [active, setActive] = useState('Integrations');
   const Tab = TABS[active];
+
+  /* 1-8 jump straight to a section */
+  useEffect(() => {
+    const h = (e) => {
+      const t = e.target.tagName;
+      if (t === 'INPUT' || t === 'TEXTAREA' || t === 'SELECT' || e.metaKey || e.ctrlKey) return;
+      const n = Number(e.key);
+      if (n >= 1 && n <= NAV.length) setActive(NAV[n - 1]);
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, []);
+
   return (
-    <div className="fade-in">
-      <div className="mb-5">
-        <div className="label">Settings</div>
-        <h1 className="font-display uppercase text-3xl tracking-[-0.01em] mt-1.5">Account &amp; setup</h1>
+    <div className="fade-in space-y-6">
+      <div>
+        <div className="tui-crumb mono">
+          <span style={{ color: 'var(--tui-accent)' }}>SCOPE: CONFIG//ACCOUNT</span>
+        </div>
+        <h1 className="tui-h1 mono mt-3">ACCOUNT &amp; SETUP</h1>
       </div>
-      <div className="grid md:grid-cols-[200px_1fr] gap-5">
-        <nav className="card p-2 h-fit md:sticky md:top-20">
-          {NAV.map((n) => (
-            <button key={n} onClick={() => setActive(n)} className={`w-full text-left px-3 py-2 rounded-lg text-[13px] transition ${active === n ? 'bg-white/[0.06] text-ink' : 'text-dim hover:text-ink'}`}>{n}</button>
+
+      <div className="grid md:grid-cols-[210px_1fr] gap-6">
+        <nav className="tui-sidenav">
+          {NAV.map((n, i) => (
+            <button key={n} data-on={active === n} onClick={() => setActive(n)}>
+              {String(i + 1).padStart(2, '0')} · {n}
+            </button>
           ))}
         </nav>
-        <div className="min-w-0 space-y-5">
+        <div className="min-w-0 space-y-6">
           <Tab />
         </div>
       </div>
