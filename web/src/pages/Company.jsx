@@ -4,7 +4,7 @@ import { SectionHead, SpecRow, Ticks, FigBand, DataStrip } from '../components/h
 
 const STATS = [['Sites monitored', 40, 0, ''], ['Avg uptime', 99.9, 1, '%'], ['Alert latency', 2, 0, 's'], ['Countries', 24, 0, '']];
 const VALUES = [
-  ['Real-time or nothing', 'A two-hour-old status is a guess. We built FleetView around live telemetry because downtime is measured in minutes, not hours.'],
+  ['Real-time or nothing', 'A status you refresh once an hour is a guess. We built FleetView around live telemetry because downtime is measured in minutes, not hours.'],
   ['Built for the edge', 'Vessels, mines and outposts have bad networks and no IT staff. Our agent is tiny, resilient, and self-healing.'],
   ['Open by default', 'Clean APIs, no lock-in, multi-vendor by design. Your fleet data is yours.'],
 ];

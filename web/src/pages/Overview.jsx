@@ -52,7 +52,7 @@ export default function Overview({ sites, summary }) {
           <h1 className="font-display uppercase text-3xl sm:text-[40px] tracking-[-0.01em] leading-[1.04] mt-1.5">
             Every dish. One screen.
           </h1>
-          <p className="text-dim text-sm mt-2">Real-time telemetry across every Starlink site — no 2-hour delay.</p>
+          <p className="text-dim text-sm mt-2">Real-time telemetry across every Starlink site — polled every 10 seconds.</p>
         </div>
         <div className="hidden sm:block shrink-0">
           <div className="label mb-1.5">Time range</div>

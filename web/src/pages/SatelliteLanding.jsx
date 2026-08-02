@@ -13,7 +13,7 @@ const NAV = [['/product', 'Product'], ['/pricing', 'Pricing'], ['/docs', 'Docs']
 const L1 = ['Mission', 'control'];
 const L2 = ['for', 'your', 'fleet'];
 const FEATURES = [
-  ['01', 'Live, not lagged', 'Every dish reports in real time — no two-hour Enterprise delay.'],
+  ['01', 'Live, not lagged', 'Every dish is polled on-site every 10 seconds and reports within 3.'],
   ['02', 'One screen', 'Maritime, mining, remote sites and ISP relays, unified on one map.'],
   ['03', 'Alerts that fire', 'Offline, obstructed or degraded — you know before the call comes in.'],
 ];

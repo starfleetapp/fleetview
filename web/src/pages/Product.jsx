@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { SectionHead, SpecRow, Ticks, FigBand, DataStrip } from '../components/hud.jsx';
 
 const FEATURES = [
-  ['Real-time, not lagged', 'Live telemetry from every dish — latency, throughput, obstruction and uptime — with no two-hour Enterprise delay.'],
+  ['Real-time, not lagged', 'Latency, throughput, obstruction and uptime from every dish — polled on-site every 10 seconds and shipped every 3.'],
   ['One unified map', 'Maritime, mining, remote camps and ISP relays on a single globe. Click any site for full history.'],
   ['Alerts that fire', 'Offline, degraded, obstructed or high-latency — pushed to Slack and email the moment they happen.'],
   ['Automatic failover', 'Define backup links per site; FleetView flips to them and notifies you when the primary drops.'],

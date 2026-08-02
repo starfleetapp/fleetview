@@ -26,7 +26,7 @@ export default function Login({ onEnter }) {
         </h1>
         <p className="text-dim text-sm mt-3 leading-relaxed">
           Real-time health, latency, obstructions, downtime and alerts across your entire fleet —
-          maritime, mining, remote sites and ISP relays. No 2-hour delay, works on any dish.
+          maritime, mining, remote sites and ISP relays. Polled every 10 seconds, on any dish.
         </p>
 
         <form className="mt-7 space-y-3" onSubmit={(e) => { e.preventDefault(); onEnter(); }}>
