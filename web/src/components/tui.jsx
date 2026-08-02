@@ -246,6 +246,133 @@ export function TuiMap({ sites, onPick }) {
   );
 }
 
+/* ---------- character-grid plot ----------
+   Classic textplot: each cell holds 8 sub-levels via ▁▂▃▄▅▆▇█, so an 8-row
+   plot resolves 64 steps. Rendered as <pre> so it stays on the character grid
+   at any zoom, unlike a canvas. */
+const EIGHTHS = [' ', '▁', '▂', '▃', '▄', '▅', '▆', '▇'];
+
+export function TuiPlot({ data, field, unit, color = 'var(--tui-accent)', rows = 8, cols = 72 }) {
+  const { lines, hi, mid, lo, tStart, tEnd, empty } = useMemo(() => {
+    const pts = (data || []).filter((p) => p[field] != null);
+    if (pts.length < 2) return { empty: true };
+    // bucket into `cols` columns, average each
+    const buckets = Array.from({ length: cols }, () => []);
+    const t0 = pts[0].ts, t1 = pts[pts.length - 1].ts, span = Math.max(1, t1 - t0);
+    for (const p of pts) {
+      const i = Math.min(cols - 1, Math.floor(((p.ts - t0) / span) * cols));
+      buckets[i].push(p[field]);
+    }
+    let last = pts[0][field];
+    const vals = buckets.map((b) => {
+      if (!b.length) return last;
+      last = b.reduce((a, c) => a + c, 0) / b.length;
+      return last;
+    });
+    // Scale around the midpoint with a MINIMUM span. A near-flat series
+    // (a rock-steady link) would otherwise map every sample to frac 0 and
+    // render an empty plot — steady must look steady, not broken.
+    const max = Math.max(...vals), min = Math.min(...vals);
+    const mid0 = (max + min) / 2;
+    const half = Math.max((max - min) / 2, Math.abs(mid0) * 0.08, 0.5);
+    const top = mid0 + half * 1.3;
+    const bot = Math.max(0, mid0 - half * 1.3);
+    const grid = [];
+    for (let r = rows - 1; r >= 0; r--) {
+      let line = '';
+      for (let c = 0; c < cols; c++) {
+        const frac = (vals[c] - bot) / (top - bot || 1);
+        const eighths = Math.max(0, Math.round(frac * rows * 8) - r * 8);
+        line += eighths >= 8 ? '█' : EIGHTHS[Math.max(0, eighths)];
+      }
+      grid.push(line);
+    }
+    const fmt = (v) => (v >= 100 ? Math.round(v) : v >= 10 ? v.toFixed(0) : v.toFixed(1));
+    const hhmm = (ts) => new Date(ts).toISOString().slice(11, 16);
+    return { lines: grid, hi: fmt(top), mid: fmt((top + bot) / 2), lo: fmt(bot), tStart: hhmm(t0), tEnd: hhmm(t1) };
+  }, [data, field, rows, cols]);
+
+  if (empty) return <div className="tui-plot-empty tui-dim2">AWAITING TELEMETRY…</div>;
+
+  return (
+    <div className="tui-plot">
+      <div className="tui-plot-body">
+        <div className="tui-plot-axis mono">
+          <span>{hi}</span><span>{mid}</span><span>{lo}</span>
+        </div>
+        <pre className="tui-plot-canvas" style={{ color }} aria-hidden="true">{lines.join('\n')}</pre>
+      </div>
+      <div className="tui-plot-foot mono">
+        <span>└{'─'.repeat(10)}</span>
+        <span>{tStart}</span>
+        <span className="tui-dim2">{unit}</span>
+        <span>{tEnd}</span>
+        <span>{'─'.repeat(10)}┘</span>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- sky obstruction as a character density grid ----------
+   The dish reports an SNR cell grid — it maps to characters directly, which
+   is both more legible and more on-theme than the tilted radar dome. */
+export function TuiSky({ data }) {
+  const rowsOut = useMemo(() => {
+    if (!data?.snr?.length) return null;
+    const C = data.num_cols, R = data.num_rows, snr = data.snr;
+    // A character cell is ~0.6em wide by ~1.06em tall, so the grid needs
+    // ~1.77x more columns than rows to read as a circle rather than an ellipse.
+    const OH = 20, OW = 35;
+    const out = [];
+    for (let oy = 0; oy < OH; oy++) {
+      const cells = [];
+      for (let ox = 0; ox < OW; ox++) {
+        const sx = Math.floor((ox / OW) * C), sy = Math.floor((oy / OH) * R);
+        const v = snr[sy * C + sx];
+        const nx = (ox / (OW - 1)) * 2 - 1, ny = (oy / (OH - 1)) * 2 - 1;
+        const rad = Math.hypot(nx, ny);
+        if (rad > 1.02) { cells.push({ ch: ' ' }); continue; }
+        if (rad > 0.93) { cells.push({ ch: '·', dim: true }); continue; }   // horizon ring
+        if (v == null || v < 0) { cells.push({ ch: '·', dim: true }); continue; }
+        if (v < 0.25) { cells.push({ ch: '✕', bad: true }); continue; }
+        // five density levels + matching opacity, so a uniformly clear sky
+        // still shows texture instead of one flat slab of colour
+        const lv = v > 0.85 ? 0 : v > 0.7 ? 1 : v > 0.55 ? 2 : v > 0.4 ? 3 : 4;
+        cells.push({ ch: '█▓▒░·'[lv], op: [0.95, 0.78, 0.6, 0.45, 0.32][lv] });
+      }
+      out.push(cells);
+    }
+    return out;
+  }, [data]);
+
+  if (!rowsOut) return <div className="tui-plot-empty tui-dim2">NO OBSTRUCTION MAP</div>;
+  return (
+    <div className="tui-sky mono">
+      {rowsOut.map((cells, i) => (
+        <div key={i}>
+          {cells.map((c, j) => (
+            <span key={j} style={c.bad ? { color: 'var(--offline)' } : c.dim ? { color: 'var(--tui-faint)', opacity: 0.5 } : { opacity: c.op }}>{c.ch}</span>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ---------- key/value spec rows ---------- */
+export function TuiKV({ rows }) {
+  return (
+    <dl className="tui-kv mono">
+      {rows.map(([k, v]) => (
+        <div key={k}>
+          <dt>{k}</dt>
+          <dd>{v ?? '—'}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 /* ---------- top bar ---------- */
 function useUtc(withDate = false) {
   const [now, setNow] = useState('');

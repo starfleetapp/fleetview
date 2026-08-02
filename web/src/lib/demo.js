@@ -142,6 +142,16 @@ function normalise() {
     }
     const obs = data.obstruction[site.id];
     if (obs && obs.ts) obs.ts = now - Math.floor(Math.random() * 6e5);
+
+    // Per-site event log: rebase to the last few hours, newest first, so the
+    // site-detail log reads as recent activity rather than capture-day history.
+    const evs = detail?.events;
+    if (Array.isArray(evs)) {
+      evs.forEach((e, i) => {
+        e.started_at = now - (i + 1) * (37 * 60000) - Math.floor(Math.random() * 6e5);
+        if (!e.active) e.ended_at = e.started_at + 8 * 60000;
+      });
+    }
   }
 
   // The captured alert list was inflated by those stale-looking dishes. Keep
