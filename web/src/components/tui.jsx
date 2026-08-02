@@ -393,6 +393,8 @@ export function TuiTopBar({ summary }) {
   return (
     <header className="tui-top mono">
       <div className="tui-top-l">
+        <img src={`${import.meta.env.BASE_URL}assets/logo-64.png`} alt="" width={20} height={20}
+          style={{ width: 20, height: 20, objectFit: 'contain', flex: 'none' }} />
         <span className="tui-brand">FLEETVIEW</span>
         <span className="tui-dim2">// MISSION CONTROL</span>
         <nav className="tui-nav">

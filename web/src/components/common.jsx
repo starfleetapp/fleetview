@@ -24,12 +24,14 @@ export function Pill({ status, children }) {
   );
 }
 
-export function Logo({ size = 22 }) {
+/* The brand mark. Raster, not drawn in code — assets/logo.png is the supplied
+   artwork with its black background keyed to alpha, so it sits on any panel.
+   The 64px variant is served below 40px to keep small headers light. */
+export function Logo({ size = 22, className = '' }) {
+  const src = `${import.meta.env.BASE_URL}assets/${size > 40 ? 'logo.png' : 'logo-64.png'}`;
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M3 20c5-9 13-13 18-15" stroke="var(--accent)" strokeWidth="1.6" strokeLinecap="round" opacity="0.5" />
-      <path d="M5 20c4-7 10-10 14-12" stroke="var(--accent)" strokeWidth="1.8" strokeLinecap="round" opacity="0.8" />
-      <circle cx="6.5" cy="18.5" r="2.4" fill="#fff" />
-    </svg>
+    <img src={src} width={size} height={size} alt="FleetView"
+      className={className}
+      style={{ width: size, height: size, objectFit: 'contain', display: 'block', flex: 'none' }} />
   );
 }
