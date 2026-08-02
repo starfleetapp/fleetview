@@ -9,6 +9,30 @@ const FEATURES = [
   ['Any dish, any vendor', 'Starlink today, multi-vendor tomorrow. One agent normalizes telemetry across hardware.'],
   ['Lightweight edge agent', 'A single container per site polls the dish locally and ships compact telemetry to the cloud.'],
 ];
+/**
+ * Comparison against Starlink's own first-party tooling.
+ *
+ * Ground rules for this table — do not loosen them:
+ *  · FleetView is a monitoring layer ON TOP of Starlink service, not a
+ *    replacement for it. The table compares tooling, never connectivity.
+ *  · The Starlink column states only what is structurally certain (it is
+ *    closed-source, first-party, SpaceX-hosted, tied to an active account).
+ *    We do NOT assert absent features or latency figures we cannot verify —
+ *    those would be unverified claims about a real company's product.
+ *  · '—' means "not offered", 'n/a' means the row doesn't apply to them.
+ */
+const VERSUS = [
+  ['Purpose', 'Fleet-wide monitoring layer', 'Account & service management'],
+  ['Source code', 'Open — MIT licensed', 'Closed'],
+  ['Self-hosting', 'Yes — run the whole stack', '—'],
+  ['Where data lives', 'Your database', 'SpaceX platform'],
+  ['Telemetry source', "Dish's local gRPC API, polled on-site", 'Starlink account / cloud'],
+  ['Evaluate without hardware', 'Yes — 40-dish simulator included', 'Requires active service'],
+  ['Fault simulation', '5 injectable failure modes', '—'],
+  ['Multi-vendor path', 'Designed for it', 'Starlink hardware'],
+  ['Cost', '$29 / site / month', 'Bundled with service plan'],
+];
+
 const STEPS = [
   ['01', 'Install the agent', 'One container per site, one enrollment token. Live in minutes.'],
   ['02', 'Stream to the cloud', 'The agent polls the dish locally and ships telemetry in real time.'],
@@ -73,7 +97,58 @@ export default function Product() {
       </section>
 
       <section data-reveal className="max-w-[1300px] mx-auto px-6 py-20 border-t border-line">
-        <SectionHead index="04 — Deployment" title="How it works" />
+        <SectionHead index="04 — Comparison" title="FleetView vs. first-party tooling" fig="MONITORING LAYER · NOT CONNECTIVITY" />
+        <p className="reveal text-dim text-[14px] max-w-2xl leading-relaxed mb-10">
+          FleetView doesn't replace Starlink — it watches it. SpaceX provides the
+          connectivity and the terminals; FleetView is the operations layer that
+          sits on top of them, across a whole fleet. Here's how the tooling differs.
+        </p>
+
+        <div className="reveal relative border border-white/[0.07] overflow-x-auto">
+          <Ticks />
+          <table className="w-full text-[13.5px] min-w-[620px]">
+            <thead>
+              <tr className="border-b border-white/[0.1]">
+                <th className="label text-left font-normal p-4">Capability</th>
+                <th className="label text-left font-normal p-4" style={{ color: 'var(--accent)' }}>FleetView</th>
+                <th className="label text-left font-normal p-4">Starlink first-party</th>
+              </tr>
+            </thead>
+            <tbody>
+              {VERSUS.map(([cap, ours, theirs]) => (
+                <tr key={cap} className="border-b border-white/[0.05] last:border-b-0">
+                  <td className="p-4 text-dim">{cap}</td>
+                  <td className="p-4 text-ink">{ours}</td>
+                  <td className="p-4 text-faint">{theirs}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <p className="reveal label mt-5 leading-relaxed max-w-2xl opacity-70">
+          Starlink and SpaceX are trademarks of Space Exploration Technologies Corp.
+          FleetView is an independent product, not affiliated with or endorsed by SpaceX.
+          Comparison reflects tooling architecture, not connectivity or service quality.
+        </p>
+
+        <div className="grid md:grid-cols-3 gap-5 mt-12">
+          {[
+            ['Run it yourself', 'The whole stack — simulator, agent, backend, dashboard — is MIT-licensed and self-hostable. Your telemetry stays in your database, on your infrastructure. Nothing about your fleet has to leave your control.'],
+            ['Evaluate in ten seconds', 'One command boots 40 simulated dishes. You can assess the product, wire up alerting and test your runbook before buying a single terminal — no hardware, no account, no sales call.'],
+            ['Break it on purpose', 'Five injectable failure modes let you rehearse the bad day: a vessel going dark mid-ocean, an obstruction creeping in, a thermal throttle. Most monitoring tools make you wait for a real outage to find out whether your alerts work.'],
+          ].map(([t, d]) => (
+            <div key={t} className="reveal relative p-6 border border-white/[0.07]" style={{ background: 'rgba(255,255,255,0.015)' }}>
+              <Ticks />
+              <h3 className="font-display uppercase text-lg mb-2">{t}</h3>
+              <p className="text-dim text-[14px] leading-relaxed">{d}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section data-reveal className="max-w-[1300px] mx-auto px-6 py-20 border-t border-line">
+        <SectionHead index="05 — Deployment" title="How it works" />
         <div className="grid md:grid-cols-3 gap-5">
           {STEPS.map(([n, t, d]) => (
             <div key={n} className="reveal relative p-6 border border-white/[0.07]">

@@ -212,20 +212,10 @@ class DemoSocket {
   }
 }
 
-/* ---------- badge ---------- */
-function badge() {
-  const el = document.createElement('div');
-  el.textContent = 'DEMO — simulated fleet, no backend';
-  el.style.cssText = [
-    'position:fixed', 'left:12px', 'bottom:12px', 'z-index:9999',
-    'font:500 10px/1 ui-monospace,SFMono-Regular,Menlo,monospace',
-    'letter-spacing:.14em', 'text-transform:uppercase',
-    'color:#7dd3fc', 'background:rgba(8,15,30,.72)',
-    'border:1px solid rgba(125,211,252,.28)', 'border-radius:999px',
-    'padding:7px 12px', 'backdrop-filter:blur(6px)', 'pointer-events:none',
-  ].join(';');
-  document.body.appendChild(el);
-}
+/* The floating "DEMO — simulated fleet" badge was removed at the owner's
+   request. The demo is still disclosed in prose where a visitor reads about
+   it: the landing-page FAQ ("Is this real data?") and the Pricing FAQ both
+   state that the public demo runs a built-in fleet simulator. Keep those. */
 
 function install() {
   const realFetch = window.fetch.bind(window);
@@ -241,8 +231,6 @@ function install() {
   };
   window.WebSocket = DemoSocket;
   setInterval(tick, TICK_MS);
-  if (document.body) badge();
-  else window.addEventListener('DOMContentLoaded', badge);
 }
 
 /**
