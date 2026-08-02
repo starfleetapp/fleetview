@@ -178,6 +178,95 @@ function normalise() {
   };
 }
 
+/* ---------- fault injection ----------
+   Mirrors the real simulator's control plane (POST :8799/scenario) so the
+   public demo can be broken on purpose. Modes match simulator/scenarios.js
+   exactly: normal | offline | obstructed | high_latency | degraded | thermal. */
+const BASELINE = new Map();   // site id -> pristine copy, for `normal`
+let nextAlertId = 9000;
+
+function siteIndex(id) {
+  return data.fleet.sites.findIndex((s) => s.id === id);
+}
+
+function fireAlert(site, type, severity, message) {
+  data.alerts.alerts.unshift({
+    id: nextAlertId++, rule_id: null, site_id: site.id, site_name: site.name,
+    type, severity, message, fired_at: Date.now(), resolved_at: null, status: 'active',
+  });
+}
+
+function resolveAlertsFor(id) {
+  const now = Date.now();
+  for (const a of data.alerts.alerts) {
+    if (a.site_id === id && a.status === 'active') { a.status = 'resolved'; a.resolved_at = now; }
+  }
+}
+
+export function injectScenario(id, mode) {
+  if (!data) return { ok: false, error: 'demo layer not active' };
+  const i = siteIndex(id);
+  if (i < 0) return { ok: false, error: `unknown site: ${id}` };
+  if (!MODES.includes(mode)) return { ok: false, error: `unknown mode: ${mode}` };
+
+  const site = data.fleet.sites[i];
+  if (!BASELINE.has(id)) BASELINE.set(id, { ...site });
+
+  let next = { ...site };
+  resolveAlertsFor(id);
+
+  if (mode === 'normal') {
+    next = { ...BASELINE.get(id), last_seen: Date.now() };
+  } else if (mode === 'offline') {
+    next = { ...next, status: 'offline', state: 'OFFLINE', reachable: false,
+      ping_latency_ms: 0, latency_p95_ms: 0, ping_drop_rate: 1, downlink_bps: 0, uplink_bps: 0 };
+    fireAlert(next, 'site_down', 'critical', `${site.name} is offline — no telemetry received.`);
+  } else if (mode === 'obstructed') {
+    const f = 0.34;
+    next = { ...next, status: 'degraded', state: 'OBSTRUCTED', currently_obstructed: true,
+      fraction_obstructed: f, downlink_bps: Math.round((site.downlink_bps || 1.4e8) * 0.45) };
+    fireAlert(next, 'obstruction', 'warning', `${site.name} sky obstruction ${(f * 100).toFixed(1)}%.`);
+  } else if (mode === 'high_latency') {
+    next = { ...next, status: 'degraded', ping_latency_ms: 287, latency_p95_ms: 312 };
+    fireAlert(next, 'high_latency', 'warning', `${site.name} latency 287 ms (> 150 ms).`);
+  } else if (mode === 'degraded') {
+    next = { ...next, status: 'degraded', ping_drop_rate: 0.18,
+      downlink_bps: Math.round((site.downlink_bps || 1.4e8) * 0.55) };
+    fireAlert(next, 'high_drop', 'warning', `${site.name} packet loss 18.0% (> 10%).`);
+  } else if (mode === 'thermal') {
+    next = { ...next, status: 'degraded', downlink_bps: Math.round((site.downlink_bps || 1.4e8) * 0.25),
+      uplink_bps: Math.round((site.uplink_bps || 1.6e7) * 0.3), ping_latency_ms: 168 };
+    fireAlert(next, 'high_latency', 'warning', `${site.name} thermal throttle — throughput reduced.`);
+  }
+
+  next.last_seen = Date.now();
+  data.fleet.sites[i] = next;
+  if (data.sites[id]) data.sites[id].status = { ...data.sites[id].status, ...next };
+  data.fleet.summary = { ...data.fleet.summary,
+    active_alerts: data.alerts.alerts.filter((a) => a.status === 'active').length };
+
+  // notify the live layer exactly as a real status delta would
+  for (const fn of listeners) {
+    fn({ type: 'status', site: next });
+    fn({ type: 'alert' });
+  }
+  return { ok: true, site: next.name, mode };
+}
+
+export function resetScenarios() {
+  if (!data) return { ok: false };
+  let n = 0;
+  for (const id of [...BASELINE.keys()]) { injectScenario(id, 'normal'); n++; }
+  BASELINE.clear();
+  return { ok: true, restored: n };
+}
+
+export function demoSiteIds() {
+  return data ? data.fleet.sites.map((s) => ({ id: s.id, name: s.name })) : [];
+}
+
+export const MODES = ['normal', 'offline', 'obstructed', 'high_latency', 'degraded', 'thermal'];
+
 /* ---------- fake REST ---------- */
 function jsonResponse(body) {
   return new Response(JSON.stringify(body), {
@@ -249,6 +338,8 @@ function install() {
   };
   window.WebSocket = DemoSocket;
   setInterval(tick, TICK_MS);
+  // Console + command-bar surface for fault injection in the public demo.
+  window.__fvDemo = { inject: injectScenario, reset: resetScenarios, sites: demoSiteIds, modes: MODES };
 }
 
 /**

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TuiPanel, TuiStatStrip, TuiMap, Tag, TuiHelp } from '../components/tui.jsx';
+import { TuiPanel, TuiStatStrip, TuiMap, Tag, TuiHelp, TuiFeed } from '../components/tui.jsx';
 import { fmtMs, fmtPct, fmtBps, ago } from '../lib/format.js';
 
 const RANK = { offline: 0, degraded: 1, online: 2 };
@@ -36,7 +36,7 @@ function Attention({ sites, onOpen }) {
   );
 }
 
-export default function Overview({ sites, summary }) {
+export default function Overview({ sites, summary, log }) {
   const nav = useNavigate();
   const [q, setQ] = useState('');
   const [type, setType] = useState('all');
@@ -99,6 +99,10 @@ export default function Overview({ sites, summary }) {
           <Attention sites={sites} onOpen={(s) => nav(`/app/site/${s.id}`)} />
         </TuiPanel>
       </div>
+
+      <TuiPanel title="LIVE TELEMETRY STREAM" right="WS · REALTIME">
+        <TuiFeed log={log} />
+      </TuiPanel>
 
       <TuiPanel title="FLEET SITES" right={`SORT:[${sort.toUpperCase()}]`}>
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-3 pt-3 pb-2 mono">

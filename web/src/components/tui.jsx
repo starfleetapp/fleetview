@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { geoNaturalEarth1, geoPath, geoGraticule10 } from 'd3-geo';
 import { feature } from 'topojson-client';
 import land110m from 'world-atlas/land-110m.json';
@@ -433,6 +433,141 @@ export function TuiStatusBar({ connected }) {
   );
 }
 
+/* ---------- live event stream ----------
+   Fed by real WebSocket status deltas. State transitions are called out;
+   everything else is a telemetry line. This is what makes it feel alive. */
+export function TuiFeed({ log, rows = 9 }) {
+  const shown = (log || []).slice(0, rows);
+  return (
+    <div className="tui-feed mono">
+      {shown.length === 0 && <div className="tui-feed-row tui-dim2">AWAITING TELEMETRY STREAM…<span className="tui-cursor">█</span></div>}
+      {shown.map((e) => (
+        <div key={e.key} className="tui-feed-row" data-kind={e.kind}>
+          <span className="tui-feed-ts">{e.time}</span>
+          {e.kind === 'change' ? (
+            <>
+              <span style={{ color: e.color }}>▲ STATE</span>
+              <span className="tui-feed-site">{e.site}</span>
+              <span className="tui-feed-msg" style={{ color: e.color }}>{e.from} → {e.to}</span>
+            </>
+          ) : (
+            <>
+              <span className="tui-dim2">·</span>
+              <span className="tui-feed-site">{e.site}</span>
+              <span className="tui-feed-msg tui-dim2">{e.msg}</span>
+            </>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ---------- ':' command bar ----------
+   Real commands against the demo layer — inject / reset / goto / help.
+   Falls back to instructions when no injectable backend is present. */
+const HELP_LINES = [
+  'inject <site> <mode>   break a dish on purpose',
+  '  modes: offline obstructed high_latency degraded thermal normal',
+  'reset                  restore every injected site',
+  'goto <site>            open a site scope',
+  'clear                  clear this output',
+];
+
+export function TuiCommandBar() {
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState('');
+  const [out, setOut] = useState([]);
+  const inputRef = useRef(null);
+  const nav = useNavigate();
+
+  useEffect(() => {
+    const h = (e) => {
+      const t = e.target.tagName;
+      if (t === 'INPUT' || t === 'TEXTAREA') return;
+      if (e.key === ':' || (e.key === '/' && e.shiftKey)) { e.preventDefault(); setOpen(true); }
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, []);
+
+  useEffect(() => { if (open) inputRef.current?.focus(); }, [open]);
+
+  const say = (text, tone) => setOut((p) => [{ id: Math.random(), text, tone }, ...p].slice(0, 6));
+
+  const resolveSite = (token) => {
+    const api = window.__fvDemo;
+    if (!api) return null;
+    const q = token.toLowerCase();
+    const list = api.sites();
+    return list.find((s) => s.id === q)
+      || list.find((s) => s.id.includes(q))
+      || list.find((s) => s.name.toLowerCase().includes(q.replace(/-/g, ' ')));
+  };
+
+  const run = (raw) => {
+    const [cmd, ...args] = raw.trim().split(/\s+/);
+    if (!cmd) return;
+    const api = window.__fvDemo;
+
+    if (cmd === 'help' || cmd === '?') { HELP_LINES.forEach((l) => say(l)); return; }
+    if (cmd === 'clear') { setOut([]); return; }
+
+    if (cmd === 'goto' || cmd === 'g') {
+      const s = resolveSite(args[0] || '');
+      if (!s) return say(`no such site: ${args[0] || ''}`, 'err');
+      nav(`/app/site/${s.id}`); setOpen(false); return;
+    }
+
+    if (cmd === 'reset') {
+      if (!api) return say('injection needs the local simulator — see docs', 'err');
+      const r = api.reset();
+      return say(`restored ${r.restored} site(s) to nominal`, 'ok');
+    }
+
+    if (cmd === 'inject' || cmd === 'i') {
+      if (!api) {
+        say('this build has no injectable backend.', 'err');
+        return say('run locally, then: curl -X POST :8799/scenario -d \'{"id":"…","mode":"offline"}\'');
+      }
+      const s = resolveSite(args[0] || '');
+      if (!s) return say(`no such site: ${args[0] || ''}`, 'err');
+      const mode = (args[1] || 'offline').toLowerCase();
+      const r = api.inject(s.id, mode);
+      if (!r.ok) return say(r.error, 'err');
+      return say(`injected ${mode} → ${r.site}`, 'ok');
+    }
+
+    say(`unknown command: ${cmd} — try 'help'`, 'err');
+  };
+
+  if (!open) return null;
+  return (
+    <div className="tui-cmd mono">
+      {out.length > 0 && (
+        <div className="tui-cmd-out">
+          {out.map((o) => (
+            <div key={o.id} style={{ color: o.tone === 'err' ? 'var(--offline)' : o.tone === 'ok' ? 'var(--online)' : 'var(--tui-dim)' }}>
+              {o.text}
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="tui-cmd-line">
+        <span className="tui-cmd-prompt">:</span>
+        <input ref={inputRef} value={value} spellCheck={false} autoComplete="off"
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { run(value); setValue(''); }
+            else if (e.key === 'Escape') { setOpen(false); setValue(''); }
+            e.stopPropagation();
+          }}
+          placeholder="inject mv-magellan offline    ·    help    ·    esc to close" />
+      </div>
+    </div>
+  );
+}
+
 /* ---------- [?] help overlay ---------- */
 export function TuiHelp({ onClose }) {
   useEffect(() => {
@@ -442,8 +577,9 @@ export function TuiHelp({ onClose }) {
   }, [onClose]);
   const KEYS = [
     ['J / ↓', 'Next site'], ['K / ↑', 'Previous site'], ['ENTER', 'Open selected site'],
-    ['/', 'Focus search'], ['G', 'Command palette'], ['R', 'Refresh telemetry'],
-    ['1–5', 'Filter by type'], ['?', 'Toggle this help'], ['ESC', 'Close / clear'],
+    ['/', 'Focus search'], [':', 'Command bar'], ['G', 'Command palette'],
+    ['R', 'Refresh telemetry'], ['A', 'Acknowledge (alerts)'], ['1–5', 'Filter by type'],
+    ['?', 'Toggle this help'], ['ESC', 'Close / clear'],
   ];
   return (
     <div className="tui-help-veil" onClick={onClose}>
@@ -457,6 +593,13 @@ export function TuiHelp({ onClose }) {
               <span className="tui-dim2">{d}</span>
             </div>
           ))}
+          <div className="tui-help-row" style={{ marginTop: 14, borderTop: '1px dotted var(--tui-line)', paddingTop: 12 }}>
+            <span className="tui-dim2" style={{ fontSize: 11, lineHeight: 1.7 }}>
+              Press <b style={{ color: 'var(--tui-accent)' }}>:</b> then try{' '}
+              <b style={{ color: 'var(--tui-ink)' }}>inject mv-magellan offline</b> — break a
+              dish on purpose and watch the alert fire. <b style={{ color: 'var(--tui-ink)' }}>reset</b> restores it.
+            </span>
+          </div>
         </div>
       </div>
     </div>

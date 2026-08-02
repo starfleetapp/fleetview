@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Routes, Route, Outlet, useOutletContext, useNavigate } from 'react-router-dom';
-import { TuiTopBar, TuiStatusBar } from './components/tui.jsx';
+import { TuiTopBar, TuiStatusBar, TuiCommandBar } from './components/tui.jsx';
 import Overview from './pages/Overview.jsx';
 import SiteDetail from './pages/SiteDetail.jsx';
 import Alerts from './pages/Alerts.jsx';
@@ -26,14 +26,28 @@ function computeSummary(sites, activeAlerts) {
   return { total: sites.length, ...c, avg_latency_ms: latN ? Math.round(latSum / latN) : null, total_downlink_bps: down, active_alerts: activeAlerts };
 }
 
+const STATUS_COLOR = { online: 'var(--online)', degraded: 'var(--degraded)', offline: 'var(--offline)' };
+const fmtMbps = (b) => (b == null ? '—' : `${(b / 1e6).toFixed(0)}Mbps`);
+
 function useFleet() {
   const [sites, setSites] = useState([]);
   const [serverAlerts, setServerAlerts] = useState(0);
   const [connected, setConnected] = useState(false);
+  const [log, setLog] = useState([]);
+  const lastStatus = useRef(new Map());
+  const lastTelAt = useRef(0);
   useEffect(() => {
     let alive = true;
     const load = () => getJSON('/api/fleet')
-      .then((d) => { if (alive) { setSites(d.sites); setServerAlerts(d.summary.active_alerts); } })
+      .then((d) => {
+        if (!alive) return;
+        setSites(d.sites);
+        setServerAlerts(d.summary.active_alerts);
+        // Seed known statuses from the full fleet, otherwise the first delta
+        // for a site has nothing to compare against and a genuine transition
+        // is logged as an ordinary telemetry line.
+        for (const s of d.sites) if (!lastStatus.current.has(s.id)) lastStatus.current.set(s.id, s.status);
+      })
       .catch(() => {});
     load();
     // [R] in terminal mode dispatches this for an on-demand refetch
@@ -42,13 +56,33 @@ function useFleet() {
     const off = connectWS(
       (msg) => {
         if (msg.type === 'status') {
+          const s = msg.site;
           setSites((prev) => {
-            const i = prev.findIndex((s) => s.id === msg.site.id);
+            const i = prev.findIndex((x) => x.id === s.id);
             if (i < 0) return prev;
             const n = prev.slice();
-            n[i] = msg.site;
+            n[i] = s;
             return n;
           });
+          // rolling event stream — call out transitions, otherwise telemetry
+          const prevStatus = lastStatus.current.get(s.id);
+          lastStatus.current.set(s.id, s.status);
+          const now = Date.now();
+          const time = new Date().toISOString().slice(11, 19);
+          const changed = prevStatus && prevStatus !== s.status;
+          // Transitions always log. Routine telemetry is throttled — the raw
+          // feed runs ~3 lines/sec, which is unreadable and scrolls a real
+          // event off screen within seconds.
+          if (!changed && now - lastTelAt.current < 900) return;
+          if (!changed) lastTelAt.current = now;
+          const entry = changed
+            ? { key: `${s.id}-${now}-c`, kind: 'change', time, site: (s.name || '').toUpperCase(),
+                from: prevStatus.toUpperCase(), to: s.status.toUpperCase(), color: STATUS_COLOR[s.status] }
+            : { key: `${s.id}-${now}`, kind: 'tel', time, site: (s.name || '').toUpperCase(),
+                msg: s.status === 'offline'
+                  ? 'NO TELEMETRY — LINK DOWN'
+                  : `LAT ${Math.round(s.ping_latency_ms || 0)}ms  LOSS ${((s.ping_drop_rate || 0) * 100).toFixed(1)}%  DOWN ${fmtMbps(s.downlink_bps)}` };
+          setLog((prev) => [entry, ...prev].slice(0, 120));
         } else if (msg.type === 'alert') {
           load();
         }
@@ -58,7 +92,7 @@ function useFleet() {
     return () => { alive = false; clearInterval(poll); window.removeEventListener('fleet-refresh', load); off(); };
   }, []);
   const summary = useMemo(() => computeSummary(sites, serverAlerts), [sites, serverAlerts]);
-  return { sites, summary, connected };
+  return { sites, summary, connected, log };
 }
 
 function DashboardLayout() {
@@ -69,6 +103,7 @@ function DashboardLayout() {
       <main className="mx-auto max-w-[1560px] px-4 sm:px-6 pb-24 pt-7">
         <Outlet context={fleet} />
       </main>
+      <TuiCommandBar />
       <TuiStatusBar connected={fleet.connected} />
       <LiveAlertFeed />
     </div>
@@ -77,7 +112,7 @@ function DashboardLayout() {
 
 function OverviewRoute() {
   const fleet = useOutletContext();
-  return <Overview sites={fleet.sites} summary={fleet.summary} />;
+  return <Overview sites={fleet.sites} summary={fleet.summary} log={fleet.log} />;
 }
 
 export default function App() {
