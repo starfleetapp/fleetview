@@ -1,82 +1,148 @@
-import { motion } from 'motion/react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import MetricStrip from '../components/MetricStrip.jsx';
-import Globe3D from '../components/Globe3D.jsx';
-import SiteTable from '../components/SiteTable.jsx';
-import { Panel, PanelHead } from '../components/Panel.jsx';
-import { StatusDot } from '../components/common.jsx';
-import { fmtMs, fmtPct } from '../lib/format.js';
+import { TuiPanel, TuiStatStrip, TuiMap, Tag, TuiHelp } from '../components/tui.jsx';
+import { fmtMs, fmtPct, fmtBps, ago } from '../lib/format.js';
 
-function Attention({ sites }) {
-  const nav = useNavigate();
-  const rank = { offline: 0, degraded: 1 };
-  const bad = sites.filter((s) => s.status !== 'online').sort((a, b) => rank[a.status] - rank[b.status]);
-  if (bad.length === 0) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-2 py-12 text-center">
-        <StatusDot status="online" size={10} />
-        <div className="text-sm text-dim">All systems nominal</div>
-        <div className="label">0 sites need attention</div>
-      </div>
-    );
-  }
+const RANK = { offline: 0, degraded: 1, online: 2 };
+const TYPES = [['all', 'ALL'], ['vessel', 'VESSEL'], ['mine', 'MINE/ENERGY'], ['office', 'REMOTE OFFICE'], ['tower', 'ISP RELAY']];
+const SORTS = ['status', 'latency', 'name'];
+
+/* NEEDS ATTENTION — bad sites only, worst first */
+function Attention({ sites, onOpen }) {
+  const bad = sites.filter((s) => s.status !== 'online')
+    .sort((a, b) => RANK[a.status] - RANK[b.status] || a.name.localeCompare(b.name));
   return (
-    <div className="flex-1 overflow-auto divide-y divide-white/[0.05]">
-      {bad.map((s) => (
-        <button key={s.id} onClick={() => nav(`/app/site/${s.id}`)}
-          className="w-full text-left flex items-center gap-3 px-4 py-3 hover:bg-white/[0.03] transition">
-          <StatusDot status={s.status} pulse />
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-[13px]">{s.name}</div>
-            <div className="mono text-faint text-[10.5px] uppercase tracking-wide">{s.region}</div>
-          </div>
-          <div className="text-right mono text-[11px] leading-tight">
-            <div style={{ color: s.status === 'offline' ? 'var(--offline)' : 'var(--degraded)' }}>
-              {s.status === 'offline' ? 'OFFLINE' : s.currently_obstructed ? 'OBSTRUCTED' : fmtMs(s.ping_latency_ms)}
-            </div>
-            <div className="text-faint">{fmtPct(s.ping_drop_rate)} loss</div>
-          </div>
-        </button>
-      ))}
+    <div className="tui-scroll" style={{ maxHeight: 'clamp(300px, 44vh, 430px)', overflowY: 'auto' }}>
+      <table className="tui-table">
+        <thead>
+          <tr><th>TAG</th><th>SITE</th><th>REGION</th><th>LATENCY</th><th>LOSS</th></tr>
+        </thead>
+        <tbody>
+          {bad.length === 0 && (
+            <tr><td colSpan={5} style={{ color: 'var(--online)', textAlign: 'center', padding: '40px 0' }}>[  OK  ] ALL SYSTEMS NOMINAL</td></tr>
+          )}
+          {bad.map((s) => (
+            <tr key={s.id} className="tui-row" onClick={() => onOpen(s)}>
+              <td><Tag status={s.status} obstructed={s.currently_obstructed} /></td>
+              <td style={{ color: 'var(--tui-ink)' }}>{s.name.toUpperCase()}</td>
+              <td className="tui-dim2">{(s.region || '').toUpperCase()}</td>
+              <td>{s.status === 'offline' ? `${fmtPct(1)} LOSS` : fmtMs(s.ping_latency_ms)}</td>
+              <td className="tui-dim2">{s.status === 'offline' ? '—' : fmtPct(s.ping_drop_rate)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
 
 export default function Overview({ sites, summary }) {
+  const nav = useNavigate();
+  const [q, setQ] = useState('');
+  const [type, setType] = useState('all');
+  const [sort, setSort] = useState('status');
+  const [sel, setSel] = useState(0);
+  const [help, setHelp] = useState(false);
+  const searchRef = useRef(null);
+
+  const rows = useMemo(() => {
+    let r = sites.filter((s) =>
+      (type === 'all' || s.type === type) &&
+      (!q || `${s.name} ${s.region}`.toLowerCase().includes(q.toLowerCase())));
+    return [...r].sort((a, b) =>
+      sort === 'status' ? (RANK[a.status] - RANK[b.status]) || a.name.localeCompare(b.name)
+        : sort === 'latency' ? (b.ping_latency_ms || 0) - (a.ping_latency_ms || 0)
+        : a.name.localeCompare(b.name));
+  }, [sites, q, type, sort]);
+
+  useEffect(() => { setSel(0); }, [q, type, sort]);
+
+  /* keyboard layer — never hijacks typing */
+  useEffect(() => {
+    const h = (e) => {
+      const tag = e.target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || e.metaKey || e.ctrlKey || e.altKey) {
+        if (e.key === 'Escape' && tag === 'INPUT') e.target.blur();
+        return;
+      }
+      const k = e.key.toLowerCase();
+      if (k === 'j' || e.key === 'ArrowDown') { e.preventDefault(); setSel((v) => Math.min(v + 1, rows.length - 1)); }
+      else if (k === 'k' || e.key === 'ArrowUp') { e.preventDefault(); setSel((v) => Math.max(v - 1, 0)); }
+      else if (e.key === 'Enter') { if (rows[sel]) nav(`/app/site/${rows[sel].id}`); }
+      else if (e.key === '/') { e.preventDefault(); searchRef.current?.focus(); }
+      else if (k === 'g') { window.dispatchEvent(new Event('open-cmdk')); }
+      else if (k === 'r') { window.dispatchEvent(new Event('fleet-refresh')); }
+      else if (e.key === '?') { setHelp((v) => !v); }
+      else if (e.key >= '1' && e.key <= '5') { setType(TYPES[+e.key - 1][0]); }
+      else if (e.key === 'Escape') { setQ(''); }
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [rows, sel, nav]);
+
+  /* keep the selected row in view */
+  const bodyRef = useRef(null);
+  useEffect(() => {
+    bodyRef.current?.querySelector(`[data-sel='true']`)?.scrollIntoView({ block: 'nearest' });
+  }, [sel]);
+
   return (
-    <div className="space-y-5">
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        className="flex items-end justify-between gap-4">
-        <div>
-          <div className="label">Fleet overview</div>
-          <h1 className="font-display uppercase text-3xl sm:text-[40px] tracking-[-0.01em] leading-[1.04] mt-1.5">
-            Every dish. One screen.
-          </h1>
-          <p className="text-dim text-sm mt-2">Real-time telemetry across every Starlink site — polled every 10 seconds.</p>
-        </div>
-        <div className="hidden sm:block shrink-0">
-          <div className="label mb-1.5">Time range</div>
-          <button className="btn py-2 text-[12px] gap-2.5">
-            <span className="dot live-dot" style={{ background: 'var(--online)', color: 'var(--online)' }} /> Live
-            <span className="text-faint">▾</span>
-          </button>
-        </div>
-      </motion.div>
+    <div className="space-y-6">
+      <TuiStatStrip summary={summary} />
 
-      <MetricStrip summary={summary} />
-
-      <div className="grid lg:grid-cols-[1.4fr_1fr] gap-5 items-stretch">
-        <Panel bracket className="overflow-hidden">
-          <PanelHead right={<span className="mono text-[10px] text-faint">{sites.length} NODES · LIVE</span>}>Global fleet</PanelHead>
-          <Globe3D sites={sites} />
-        </Panel>
-        <Panel className="overflow-hidden flex flex-col" delay={0.08}>
-          <PanelHead right={<span className="mono text-[10px] text-faint">{sites.filter((s) => s.status !== 'online').length}</span>}>Needs attention</PanelHead>
-          <Attention sites={sites} />
-        </Panel>
+      <div className="grid lg:grid-cols-[1.35fr_1fr] gap-6 items-stretch">
+        <TuiPanel title={`GLOBAL FLEET // ${sites.length} NODES // LIVE`}>
+          <TuiMap sites={sites} onPick={(s) => nav(`/app/site/${s.id}`)} />
+        </TuiPanel>
+        <TuiPanel title="NEEDS ATTENTION"
+          right={`${sites.filter((s) => s.status !== 'online').length} FLAGGED`}>
+          <Attention sites={sites} onOpen={(s) => nav(`/app/site/${s.id}`)} />
+        </TuiPanel>
       </div>
 
-      <SiteTable sites={sites} />
+      <TuiPanel title="FLEET SITES" right={`SORT:[${sort.toUpperCase()}]`}>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-3 pt-3 pb-2 mono">
+          <span className="tui-dim2" style={{ fontSize: 11 }}>/</span>
+          <input ref={searchRef} value={q} onChange={(e) => setQ(e.target.value)}
+            placeholder="SEARCH_" className="tui-search" aria-label="Search sites" />
+          {TYPES.map(([v, l]) => (
+            <button key={v} className="tui-chip" data-on={type === v} onClick={() => setType(v)}>[{l}]</button>
+          ))}
+          <span className="ml-auto flex gap-3">
+            {SORTS.map((s) => (
+              <button key={s} className="tui-chip" data-on={sort === s} onClick={() => setSort(s)}>{s.toUpperCase()}</button>
+            ))}
+          </span>
+        </div>
+        <div className="tui-scroll">
+          <table className="tui-table" style={{ minWidth: 720 }}>
+            <thead>
+              <tr><th>STATUS</th><th>SITE</th><th>REGION</th><th>LATENCY</th><th>LOSS</th><th>DOWNLINK</th><th>LAST SEEN</th></tr>
+            </thead>
+            <tbody ref={bodyRef}>
+              {rows.map((s, i) => (
+                <tr key={s.id} className="tui-row" data-sel={i === sel}
+                  onClick={() => nav(`/app/site/${s.id}`)} onMouseEnter={() => setSel(i)}>
+                  <td><Tag status={s.status} obstructed={s.currently_obstructed} /></td>
+                  <td style={{ color: 'var(--tui-ink)' }}>{s.name.toUpperCase()}</td>
+                  <td className="tui-dim2">{(s.region || '').toUpperCase()}</td>
+                  <td>{s.status === 'offline' ? '0 ms' : fmtMs(s.ping_latency_ms)}</td>
+                  <td style={{ color: (s.ping_drop_rate || 0) > 0.05 ? 'var(--degraded)' : undefined }}>
+                    {s.status === 'offline' ? '100.0%' : fmtPct(s.ping_drop_rate)}
+                  </td>
+                  <td>{s.status === 'offline' ? '0 bps' : fmtBps(s.downlink_bps)}</td>
+                  <td className="tui-dim2">{ago(s.last_seen)}</td>
+                </tr>
+              ))}
+              {rows.length === 0 && (
+                <tr><td colSpan={7} className="tui-dim2" style={{ textAlign: 'center', padding: '30px 0' }}>NO MATCH — [ESC] TO CLEAR</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </TuiPanel>
+
+      {help && <TuiHelp onClose={() => setHelp(false)} />}
     </div>
   );
 }

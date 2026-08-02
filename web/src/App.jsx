@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Routes, Route, Outlet, useOutletContext, useNavigate } from 'react-router-dom';
-import TopNav from './components/TopNav.jsx';
+import { TuiTopBar, TuiStatusBar } from './components/tui.jsx';
 import Overview from './pages/Overview.jsx';
 import SiteDetail from './pages/SiteDetail.jsx';
 import Alerts from './pages/Alerts.jsx';
@@ -36,6 +36,8 @@ function useFleet() {
       .then((d) => { if (alive) { setSites(d.sites); setServerAlerts(d.summary.active_alerts); } })
       .catch(() => {});
     load();
+    // [R] in terminal mode dispatches this for an on-demand refetch
+    window.addEventListener('fleet-refresh', load);
     const poll = setInterval(load, 30000);
     const off = connectWS(
       (msg) => {
@@ -53,7 +55,7 @@ function useFleet() {
       },
       () => setConnected(true),
     );
-    return () => { alive = false; clearInterval(poll); off(); };
+    return () => { alive = false; clearInterval(poll); window.removeEventListener('fleet-refresh', load); off(); };
   }, []);
   const summary = useMemo(() => computeSummary(sites, serverAlerts), [sites, serverAlerts]);
   return { sites, summary, connected };
@@ -62,13 +64,13 @@ function useFleet() {
 function DashboardLayout() {
   const fleet = useFleet();
   return (
-    <div className="min-h-full">
-      <TopNav summary={fleet.summary} connected={fleet.connected} />
-      <main className="mx-auto max-w-[1500px] px-4 sm:px-6 pb-24 pt-5">
+    <div className="tui min-h-full">
+      <TuiTopBar summary={fleet.summary} />
+      <main className="mx-auto max-w-[1560px] px-4 sm:px-6 pb-24 pt-7">
         <Outlet context={fleet} />
       </main>
+      <TuiStatusBar connected={fleet.connected} />
       <LiveAlertFeed />
-      <button onClick={() => window.dispatchEvent(new Event('open-cmdk'))} className="fixed bottom-5 left-5 z-40 btn mono text-[12px]" style={{ background: 'var(--bg-2)', boxShadow: '0 6px 20px -8px rgba(0,0,0,0.6)' }}>⌘K&nbsp;&nbsp;Search</button>
     </div>
   );
 }
