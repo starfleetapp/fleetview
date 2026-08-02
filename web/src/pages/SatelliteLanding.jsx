@@ -2,7 +2,7 @@ import { Suspense, useEffect, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Stars } from '@react-three/drei';
 import { EffectComposer, Bloom, Vignette } from '@react-three/postprocessing';
-import { animate, createScope, createAnimatable, stagger } from 'animejs';
+import { animate, createScope, stagger } from 'animejs';
 import { Link } from 'react-router-dom';
 import Earth from '../components/three/Earth.jsx';
 import SatellitePanels from '../components/SatellitePanels.jsx';
@@ -68,8 +68,6 @@ const Word = ({ w, space }) => (
 
 export default function SatelliteLanding({ onEnter }) {
   const root = useRef(null);
-  const satWrap = useRef(null);
-  const satImg = useRef(null);
   const [scrolled, setScrolled] = useState(0);
   const [progress, setProgress] = useState(0);
 
@@ -78,27 +76,6 @@ export default function SatelliteLanding({ onEnter }) {
       animate('.h-word', { y: ['110%', '0%'], opacity: [0, 1], duration: 1000, delay: stagger(85, { start: 150 }), ease: 'outExpo' });
       animate('.h-up', { y: [18, 0], opacity: [0, 1], duration: 850, delay: stagger(90, { start: 700 }), ease: 'outExpo' });
     });
-
-    // satellite — fully animated (entrance + continuous float / drift / rotate / breathe)
-    const si = satImg.current;
-    if (si) {
-      animate(si, { opacity: [0, 1], duration: 1300, ease: 'outQuad' });
-      animate(si, { translateY: ['-15px', '15px'], duration: 4200, ease: 'inOutSine', loop: true, alternate: true });
-      animate(si, { translateX: ['-9px', '9px'], duration: 6800, ease: 'inOutSine', loop: true, alternate: true });
-      animate(si, { rotate: ['-2.6deg', '2.6deg'], duration: 9000, ease: 'inOutSine', loop: true, alternate: true });
-      animate(si, { scale: [1, 1.04], duration: 5200, ease: 'inOutSine', loop: true, alternate: true });
-    }
-
-    // cursor parallax on the satellite wrapper
-    let tilt;
-    if (satWrap.current) tilt = createAnimatable(satWrap.current, { x: 600, y: 600, ease: 'out(3)' });
-    const onMove = (e) => {
-      if (!tilt) return;
-      const x = (e.clientX / window.innerWidth) * 2 - 1;
-      const y = (e.clientY / window.innerHeight) * 2 - 1;
-      tilt.x(x * 30); tilt.y(y * 24);
-    };
-    window.addEventListener('mousemove', onMove);
 
     const onScroll = () => {
       setScrolled(Math.min(1, window.scrollY / 600));
@@ -123,18 +100,12 @@ export default function SatelliteLanding({ onEnter }) {
     }, { threshold: 0.2 });
     root.current?.querySelectorAll('[data-reveal]').forEach((el) => io.observe(el));
 
-    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('scroll', onScroll); io.disconnect(); tilt?.revert?.(); scope.revert(); };
+    return () => { window.removeEventListener('scroll', onScroll); io.disconnect(); scope.revert(); };
   }, []);
 
   return (
     <div ref={root} className="relative" style={{ background: '#03050a' }}>
       <Scene />
-
-      {/* satellite */}
-      <div ref={satWrap} className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 2, opacity: 1 - scrolled }}>
-        <img ref={satImg} src={`${import.meta.env.BASE_URL}assets/satellite.png`} alt="" className="absolute"
-          style={{ top: '7%', right: '2%', width: 'min(52vw, 600px)', opacity: 0, filter: 'drop-shadow(0 28px 80px rgba(78,161,255,0.42))', willChange: 'transform' }} />
-      </div>
 
       {/* header */}
       <header className="fixed top-0 inset-x-0" style={{ zIndex: 50 }}>
