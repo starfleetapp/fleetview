@@ -154,11 +154,19 @@ function normalise() {
     }
   }
 
-  // The captured alert list was inflated by those stale-looking dishes. Keep
-  // only alerts belonging to dishes that are genuinely unhealthy now, and
-  // spread them over the last few hours so the feed reads plausibly.
-  const unhealthy = new Set(data.fleet.sites.filter((s) => s.status !== 'online').map((s) => s.id));
-  const kept = data.alerts.alerts.filter((a) => unhealthy.has(a.site_id)).slice(0, 12);
+  // The captured alert list was inflated by stale-looking dishes. Keep only
+  // alerts that are consistent with each dish's CURRENT state — a degraded
+  // site must not carry a "site_down / is offline" alert while the fleet
+  // table shows it as degraded. Then spread them over the last few hours.
+  const statusById = new Map(data.fleet.sites.map((s) => [s.id, s.status]));
+  const COMPATIBLE = {
+    offline: new Set(['site_down']),
+    degraded: new Set(['high_latency', 'high_drop', 'obstruction']),
+  };
+  const kept = data.alerts.alerts.filter((a) => {
+    const st = statusById.get(a.site_id);
+    return st && st !== 'online' && COMPATIBLE[st]?.has(a.type);
+  }).slice(0, 12);
   kept.forEach((a, i) => {
     a.fired_at = now - (i + 1) * (12 * 60000) - Math.floor(Math.random() * 3e5);
     if (a.resolved_at) a.resolved_at = a.fired_at + 6 * 60000;
