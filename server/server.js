@@ -91,7 +91,15 @@ app.post('/ingest', (req, res) => {
 });
 
 // ---------------- read API ----------------
-app.get('/api/fleet', (_req, res) => {
+const API_KEY = process.env.API_KEY;
+function authenticate(req, res, next) {
+  if (!API_KEY) return next();
+  const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+  if (token !== API_KEY) return res.status(401).json({ error: 'unauthorized' });
+  next();
+}
+
+app.get('/api/fleet', authenticate, (_req, res) => {
   const sites = store.listSites().map(siteSummary);
   const counts = { online: 0, degraded: 0, offline: 0 };
   let latSum = 0, latN = 0, downSum = 0;
@@ -107,7 +115,7 @@ app.get('/api/fleet', (_req, res) => {
   } });
 });
 
-app.get('/api/sites/:id', (req, res) => {
+app.get('/api/sites/:id', authenticate, (req, res) => {
   const site = store.getSite(req.params.id);
   if (!site) return res.status(404).json({ error: 'not found' });
   const s = latest.get(site.id);
@@ -122,7 +130,7 @@ app.get('/api/sites/:id', (req, res) => {
 });
 
 const RANGE = { '1h': 3600e3, '6h': 6 * 3600e3, '24h': 24 * 3600e3 };
-app.get('/api/sites/:id/history', (req, res) => {
+app.get('/api/sites/:id/history', authenticate, (req, res) => {
   const ms = RANGE[req.query.range] || RANGE['1h'];
   const rows = store.recentSamples(req.params.id, Date.now() - ms);
   const step = Math.max(1, Math.ceil(rows.length / 240));
@@ -135,14 +143,14 @@ app.get('/api/sites/:id/history', (req, res) => {
   res.json({ points, range: req.query.range || '1h' });
 });
 
-app.get('/api/sites/:id/obstruction', (req, res) => {
+app.get('/api/sites/:id/obstruction', authenticate, (req, res) => {
   const o = store.getObstruction(req.params.id);
   if (!o) return res.json({ available: false });
   res.json({ available: true, ts: o.ts, num_rows: o.num_rows, num_cols: o.num_cols, snr: safeParse(o.snr) });
 });
 
-app.get('/api/events', (req, res) => res.json({ events: store.listEvents(Number(req.query.limit) || 50) }));
-app.get('/api/alerts', (req, res) => res.json({ alerts: store.listAlerts(Number(req.query.limit) || 50) }));
+app.get('/api/events', authenticate, (req, res) => res.json({ events: store.listEvents(Number(req.query.limit) || 50) }));
+app.get('/api/alerts', authenticate, (req, res) => res.json({ alerts: store.listAlerts(Number(req.query.limit) || 50) }));
 
 app.get('/api/alert-rules', (_req, res) =>
   res.json({ rules: store.listRules().map((r) => ({ ...r, channels: safeParse(r.channels), enabled: !!r.enabled })) }));
